@@ -1,14 +1,14 @@
 # LabTrack — Laboratory Sample Management System
 
 > **Course:** Software Engineering and Design Patterns — ZHAW MSc Life Sciences  
-> **Stage:** 3 — Core Classes and Responsibilities  
-> **Stack:** Python 3.11+ · Flask (Stage 6+) · SQLite/SQLAlchemy (Stage 7+)
+> **Stack:** Python 3.11+ · Flask · SQLite / SQLAlchemy · pytest  
+> **Stages completed:** 1 – 10 (100 points)
 
 ---
 
 ## Project Overview
 
-LabTrack is a web-based system for registering and tracking biological laboratory samples across their full lifecycle — from collection through processing, storage, and final disposal or consumption. It replaces error-prone spreadsheet tracking with a structured, role-aware, database-backed application.
+LabTrack is a web-based system for registering and tracking biological laboratory samples through their full lifecycle — from collection through processing, storage, and final disposal or consumption. It replaces error-prone spreadsheet tracking with a structured, role-aware, database-backed application.
 
 ---
 
@@ -16,122 +16,145 @@ LabTrack is a web-based system for registering and tracking biological laborator
 
 ```
 labtrack/
-├── models/
-│   ├── user.py              # User base class + role subclasses (Researcher, Technician, Admin, Viewer)
-│   └── sample.py            # Sample entity + AuditEntry (lifecycle tracking)
-├── repositories/
-│   ├── sample_repository.py # CRUD and query operations for Sample objects
-│   └── user_repository.py   # CRUD and lookup for User objects
-├── services/
-│   └── sample_service.py    # Business logic: register samples, update status, list/filter
-├── tests/
-│   └── test_models.py       # Unit and integration tests
+├── app/                         # Stage 6 — Presentation layer (Flask)
+│   ├── app.py                   # Application factory + Blueprint registration
+│   └── routes/
+│       ├── auth_routes.py       # POST /api/auth/login|logout, GET /me
+│       ├── sample_routes.py     # Full CRUD + CSV import/export
+│       └── user_routes.py       # Admin-only user management
+│
+├── database/                    # Stage 7 — Data layer (SQLAlchemy ORM)
+│   ├── models.py                # UserModel, SampleModel, AuditEntryModel
+│   └── db.py                    # Engine, session factory, init_db()
+│
+├── models/                      # Stage 3 — Domain model classes
+│   ├── user.py                  # User (abstract) + 4 role subclasses
+│   └── sample.py                # Sample + AuditEntry + SampleStatus enum
+│
+├── patterns/                    # Stage 5 — Design patterns
+│   ├── user_factory.py          # Factory: role string → User subclass
+│   ├── singleton_meta.py        # Singleton metaclass + wired repositories
+│   ├── search_strategy.py       # Strategy: 5 filter algorithms + context
+│   └── csv_adapter.py           # Adapter: CSV → SampleService interface
+│
+├── repositories/                # Stage 3 — Data access objects
+│   ├── sample_repository.py     # CRUD + filter queries for Sample
+│   └── user_repository.py       # CRUD + lookup for User
+│
+├── services/                    # Stage 3 — Application layer
+│   └── sample_service.py        # register_sample, update_status, list_samples
+│
+├── tests/                       # Stages 3, 5, 10 — Test suite (85 tests)
+│   ├── conftest.py              # Shared fixtures (clients, DB reset)
+│   ├── test_models.py           # 13 unit tests (Stage 3)
+│   ├── test_patterns.py         # 37 unit tests (Stage 5)
+│   ├── test_routes.py           # 30 integration tests (Stage 10)
+│   └── test_system.py           # 5 system scenario tests (Stage 10)
+│
+├── ML_EVALUATION.md             # Stage 8 — ML decision log
+├── requirements.txt
+├── .gitignore
 └── README.md
 ```
 
-> **Note:** The Flask app entry point (`app.py`) and database configuration will be added in Stage 6 (architecture) and Stage 7 (data storage).
-
 ---
 
-## Class Overview
+## Architecture
 
-### `models/user.py`
-
-| Class | Type | Description |
-|---|---|---|
-| `User` | Abstract base | Common user attributes and abstract permission methods |
-| `Researcher` | Concrete (inherits `User`) | Can register samples and import CSV |
-| `LabTechnician` | Concrete (inherits `User`) | Can update sample status only |
-| `Administrator` | Concrete (inherits `User`) | Full access including user management |
-| `Viewer` | Concrete (inherits `User`) | Read-only, no write permissions |
-
-**Key attributes:** `_user_id`, `_username`, `_email`, `_password_hash`, `_role`, `_is_active`  
-**Key methods:** `can_register_sample()`, `can_update_status()`, `can_manage_users()`, `can_import_csv()` *(all abstract → polymorphism)*
-
----
-
-### `models/sample.py`
-
-| Class | Type | Description |
-|---|---|---|
-| `SampleStatus` | Enum | Lifecycle states: Collected → Processing → Stored → Consumed/Discarded |
-| `Sample` | Concrete | Central domain entity; enforces lifecycle transitions |
-| `AuditEntry` | Concrete (composed by `Sample`) | Immutable record of one status change |
-
-**Key attributes:** `_sample_id`, `_sample_type`, `_source_organism`, `_status`, `_audit_log`  
-**Key methods:** `update_status(new_status, changed_by_id)` — validates transitions and appends to audit log
-
----
-
-### `repositories/`
-
-| Class | Responsibility |
-|---|---|
-| `SampleRepository` | CRUD + filter queries for `Sample` objects (in-memory → SQLAlchemy in Stage 7) |
-| `UserRepository` | CRUD + lookup by username or role for `User` objects |
-
----
-
-### `services/sample_service.py`
-
-| Class | Responsibility |
-|---|---|
-| `SampleService` | Orchestrates `register_sample()`, `update_sample_status()`, `list_samples()` — checks permissions before delegating to repositories |
-
----
-
-## Class Relationships
+**Combined Layered + Client-Server** (Stage 6):
 
 ```
-User (abstract)
-├── Researcher        ──inheritance──►  User
-├── LabTechnician     ──inheritance──►  User
-├── Administrator     ──inheritance──►  User
-└── Viewer            ──inheritance──►  User
-
-Sample ──composition──► AuditEntry   (AuditEntry cannot exist without Sample)
-
-SampleRepository ──aggregation──► Sample   (manages, does not own)
-UserRepository   ──aggregation──► User
-
-SampleService ──dependency──► SampleRepository
-SampleService ──dependency──► UserRepository
+Browser ──HTTP/HTTPS──► Flask server
+                         ├── Presentation layer  (app/routes/)
+                         ├── Application layer   (services/, patterns/)
+                         └── Data layer          (repositories/, database/)
+                                  │
+                                  └──SQL/ORM──► SQLite DB
 ```
 
 ---
 
-## OOD Principles Applied
+## Design Patterns Applied (Stage 5)
 
-| Principle | Where |
-|---|---|
-| **Encapsulation** | All attributes are private (`_name`); access via getters/setters with validation |
-| **Inheritance** | `Researcher`, `LabTechnician`, `Administrator`, `Viewer` all extend `User` |
-| **Polymorphism** | Permission methods (`can_register_sample()` etc.) are abstract in `User` and overridden in each subclass |
-| **Abstraction** | `User` is an ABC — it cannot be instantiated directly |
-| **Composition** | `Sample` owns its `AuditEntry` list; entries are created internally and never exposed directly |
+| Pattern | Category | Applied to |
+|---|---|---|
+| Factory | Creational | `UserFactory` — role string → correct User subclass |
+| Singleton | Creational | `SampleRepository`, `UserRepository` — single shared instance |
+| Strategy | Behavioral | `SearchStrategy` hierarchy — swappable filter algorithms |
+| Adapter | Structural | `CsvImportAdapter` — CSV format → SampleService interface |
+
+---
+
+## Database Schema (Stage 7)
+
+Three tables: **USER** → **SAMPLE** (1:M) and **SAMPLE** → **AUDIT_ENTRY** (1:M), with **USER** → **AUDIT_ENTRY** (1:M) for change attribution.
+
+---
+
+## Running the Application
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Start the development server
+python app/app.py
+# → http://localhost:5000
+```
 
 ---
 
 ## Running the Tests
 
 ```bash
-# Install pytest if needed
-pip install pytest
+# Run all 85 tests
+pytest tests/ -v
 
-# From the project root
-pytest labtrack/tests/ -v
+# With coverage report
+pytest tests/ -v --cov=app --cov=models --cov=patterns --cov=services --cov-report=term-missing
 ```
+
+**Test breakdown:**
+- 13 unit tests — domain model classes (`test_models.py`)
+- 37 unit tests — design pattern implementations (`test_patterns.py`)
+- 30 integration tests — Flask API endpoints (`test_routes.py`)
+- 5 system scenarios — end-to-end workflows (`test_system.py`)
 
 ---
 
-## Upcoming Stages
+## API Endpoints
 
-| Stage | What will be added |
-|---|---|
-| 4 | UML diagrams (Use Case, Class, Sequence, Activity) added to SRS |
-| 5 | Design patterns applied: Factory (UserFactory), Singleton (repositories), Strategy (search), Adapter (CSV import) |
-| 6 | Flask app entry point, REST API routes, architecture diagram |
-| 7 | SQLAlchemy ORM models, ER diagram, database migration |
-| 8 | ML integration evaluation |
-| 9 | Frontend templates and navigation flow |
-| 10 | QA strategy, unit/integration test suite, maintenance plan |
+| Method | Endpoint | Description | Auth |
+|---|---|---|---|
+| POST | `/api/auth/login` | Authenticate, start session | None |
+| POST | `/api/auth/logout` | Destroy session | Session |
+| GET | `/api/auth/me` | Current user profile | Session |
+| GET | `/api/samples/` | List samples (filterable) | Session |
+| POST | `/api/samples/` | Register new sample | Researcher/Admin |
+| GET | `/api/samples/<id>` | Sample detail + audit log | Session |
+| PUT | `/api/samples/<id>/status` | Update lifecycle status | Researcher/Tech/Admin |
+| POST | `/api/samples/import` | Bulk CSV import | Researcher/Admin |
+| GET | `/api/samples/export` | Export as CSV | Session |
+| GET | `/api/users/` | List users | Admin |
+| POST | `/api/users/` | Create user account | Admin |
+| PUT | `/api/users/<id>` | Update user | Admin |
+| DELETE | `/api/users/<id>` | Deactivate user | Admin |
+
+---
+
+## ML Decision (Stage 8)
+
+ML integration was evaluated and **not included**. See `ML_EVALUATION.md` for the full assessment of 5 candidate applications and the 5-point justification.
+
+---
+
+## Version History
+
+| Tag | Stage | Description |
+|---|---|---|
+| v1.0 | Stage 1 | Project definition |
+| v3.0 | Stage 3 | Core classes + unit tests |
+| v5.0 | Stage 5 | Design patterns |
+| v6.0 | Stage 6 | Flask architecture |
+| v7.0 | Stage 7 | SQLAlchemy models |
+| v10.0 | Stage 10 | QA — final submission |
