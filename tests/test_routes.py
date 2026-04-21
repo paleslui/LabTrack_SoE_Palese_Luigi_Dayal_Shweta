@@ -46,9 +46,7 @@ class TestAuthRoutes:
 
     def test_login_success_returns_200_with_user_data(self, client):
         resp = client.post("/api/auth/login",
-                           json={"username": "alice", "password": "anypass"})
-        # Stage 6 routes use a stub that accepts any credentials.
-        # Stage 7 will replace the stub with bcrypt verification.
+                           json={"username": "alice", "password": "testpass"})
         assert resp.status_code == 200
         data = resp.get_json()
         assert "user_id" in data
@@ -57,7 +55,7 @@ class TestAuthRoutes:
 
     def test_login_sets_session(self, client):
         client.post("/api/auth/login",
-                    json={"username": "alice", "password": "pass"})
+                    json={"username": "alice", "password": "testpass"})
         # After login, /api/auth/me should succeed
         resp = client.get("/api/auth/me")
         assert resp.status_code == 200
@@ -295,5 +293,6 @@ class TestUserRoutes:
         assert resp.status_code == 403
 
     def test_deactivate_user_admin_returns_200(self, admin_client):
-        resp = admin_client.delete("/api/users/5")
+        # Target user_id=4 (dave/viewer) — seeded by conftest
+        resp = admin_client.delete("/api/users/4")
         assert resp.status_code == 200

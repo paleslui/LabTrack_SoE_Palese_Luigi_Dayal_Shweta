@@ -1,81 +1,84 @@
 """
 repositories/sample_repository.py
 ----------------------------------
-Data access layer for Sample objects.
-
-Relationship:
-  - SampleRepository has an association with Sample (aggregation).
-    The repository manages a collection of samples but does not own them —
-    samples exist independently in the database.
-
-Design note (Stage 5):
-  The Singleton pattern will be applied to SampleRepository to ensure
-  only one database connection pool is maintained at runtime.
+SQLAlchemy-backed data access layer for Sample objects.
 """
 
-from models.sample import Sample, SampleStatus
 from datetime import datetime
 from typing import Optional
+from models.sample import Sample, SampleStatus, AuditEntry
+from database.db import db_session
+from database.models import SampleModel, AuditEntryModel
 
 
 class SampleRepository:
-    """
-    Provides CRUD operations and queries for Sample records.
-
-    In Stage 3 this class uses an in-memory store (a plain dict) so the
-    class structure can be defined and tested without a database.
-    The implementation will be replaced with SQLAlchemy calls in Stage 7.
-
-    Attributes
-    ----------
-    _store : dict[str, Sample] — in-memory dictionary keyed by sample_id
-    _counter : int             — monotonic counter used to generate IDs
-    """
-
-    def __init__(self):
-        self._store: dict[str, Sample] = {}
-        self._counter: int = 0
 
     # ── ID generation ──────────────────────────────────────────────────────
-    def _generate_id(self) -> str:
-        """Generate the next sample ID in format LT-YYYY-NNNN."""
-        self._counter += 1
-        year = datetime.utcnow().year
-        return f"LT-{year}-{self._counter:04d}"
+    def _next_id(self) -> str:
+        """Generate next LT-YYYY-NNNN ID using DB count."""
+        with db_session() as session:
+            count = session.query(SampleModel).count() + 1
+            year = datetime.utcnow().year
+            return f"LT-{year}-{count:04d}"
+
+    # ── ORM ↔ Domain conversion ────────────────────────────────────────────
+    @staticmethod
+    def _to_domain(orm: SampleModel, audit_rows: list) -> Sample:
+        """Convert a SampleModel + its AuditEntryModel rows into a Sample domain object."""
+        col_date = orm.collection_date
+        if not isinstance(col_date, datetime):
+            col_date = datetime(col_date.year, col_date.month, col_date.day)
+
+        sample = Sample(
+            sample_id=orm.sample_id,
+            sample_type=orm.sample_type,
+            source_organism=orm.source_organism,
+            collection_date=col_date,
+            storage_location=orm.storage_location,
+            created_by_id=orm.created_by,
+            notes=orm.notes or "",
+        )
+        # Restore persisted state (bypass __init__ defaults)
+        sample._status     = SampleStatus(orm.status)
+        sample._created_at = orm.created_at
+        sample._updated_at = orm.updated_at
+
+        # Restore audit log
+        for ae in audit_rows:
+            entry = AuditEntry(
+                sample_id=ae.sample_id,
+                old_status=SampleStatus(ae.old_status),
+                new_status=SampleStatus(ae.new_status),
+                changed_by_id=ae.changed_by,
+            )
+            entry._timestamp = ae.timestamp
+            sample._audit_log.append(entry)
+
+        return sample
 
     # ── Create ─────────────────────────────────────────────────────────────
-    def add(self, sample: Sample) -> None:
-        """
-        Persist a new sample record.
+    def create(self, sample_type: str, source_organism: str,
+               collection_date: datetime, storage_location: str,
+               created_by_id: int, notes: str = "") -> Sample:
+        """Generate an ID, persist the sample, return the domain object."""
+        # Generate a unique ID
+        with db_session() as session:
+            year = datetime.utcnow().year
+            count = session.query(SampleModel).count() + 1
+            new_id = f"LT-{year}-{count:04d}"
+            orm = SampleModel(
+                sample_id=new_id,
+                sample_type=sample_type,
+                source_organism=source_organism,
+                collection_date=collection_date,
+                storage_location=storage_location,
+                status="Collected",
+                notes=notes,
+                created_by=created_by_id,
+            )
+            session.add(orm)
 
-        Parameters
-        ----------
-        sample : Sample — the sample to store
-
-        Raises
-        ------
-        ValueError — if a sample with the same ID already exists
-        """
-        sid = sample.get_sample_id()
-        if sid in self._store:
-            raise ValueError(f"Sample with ID {sid!r} already exists.")
-        self._store[sid] = sample
-
-    def create(
-        self,
-        sample_type: str,
-        source_organism: str,
-        collection_date: datetime,
-        storage_location: str,
-        created_by_id: int,
-        notes: str = "",
-    ) -> Sample:
-        """
-        Factory-style convenience method: generate an ID, build a Sample,
-        persist it, and return it.
-        """
-        new_id = self._generate_id()
-        sample = Sample(
+        return Sample(
             sample_id=new_id,
             sample_type=sample_type,
             source_organism=source_organism,
@@ -84,62 +87,109 @@ class SampleRepository:
             created_by_id=created_by_id,
             notes=notes,
         )
-        self.add(sample)
-        return sample
+
+    def add(self, sample: Sample) -> None:
+        """Persist an already-constructed Sample domain object."""
+        with db_session() as session:
+            if session.query(SampleModel).filter_by(sample_id=sample.get_sample_id()).first():
+                raise ValueError(f"Sample {sample.get_sample_id()!r} already exists.")
+            orm = SampleModel(
+                sample_id=sample.get_sample_id(),
+                sample_type=sample.get_sample_type(),
+                source_organism=sample.get_source_organism(),
+                collection_date=sample.get_collection_date(),
+                storage_location=sample.get_storage_location(),
+                status=sample.get_status().value,
+                notes=sample.get_notes(),
+                created_by=sample.get_created_by_id(),
+            )
+            session.add(orm)
 
     # ── Read ───────────────────────────────────────────────────────────────
     def get_by_id(self, sample_id: str) -> Optional[Sample]:
-        """Return the Sample with the given ID, or None if not found."""
-        return self._store.get(sample_id)
+        with db_session() as session:
+            orm = session.query(SampleModel).filter_by(sample_id=sample_id).first()
+            if orm is None:
+                return None
+            audit_rows = (session.query(AuditEntryModel)
+                          .filter_by(sample_id=sample_id)
+                          .order_by(AuditEntryModel.timestamp)
+                          .all())
+            return self._to_domain(orm, audit_rows)
 
     def get_all(self) -> list[Sample]:
-        """Return all stored samples as a list."""
-        return list(self._store.values())
+        with db_session() as session:
+            rows = session.query(SampleModel).order_by(SampleModel.created_at.desc()).all()
+            result = []
+            for orm in rows:
+                audit_rows = (session.query(AuditEntryModel)
+                              .filter_by(sample_id=orm.sample_id)
+                              .order_by(AuditEntryModel.timestamp)
+                              .all())
+                result.append(self._to_domain(orm, audit_rows))
+            return result
 
     def find_by_status(self, status: SampleStatus) -> list[Sample]:
-        """Return all samples currently in the given lifecycle state."""
-        return [s for s in self._store.values() if s.get_status() == status]
+        with db_session() as session:
+            rows = session.query(SampleModel).filter_by(status=status.value).all()
+            return [self._to_domain(r, []) for r in rows]
 
     def find_by_type(self, sample_type: str) -> list[Sample]:
-        """Return all samples matching the given type (case-insensitive)."""
-        t = sample_type.lower()
-        return [s for s in self._store.values() if s.get_sample_type().lower() == t]
+        with db_session() as session:
+            rows = session.query(SampleModel).filter(
+                SampleModel.sample_type.ilike(f"%{sample_type}%")
+            ).all()
+            return [self._to_domain(r, []) for r in rows]
 
     def find_by_user(self, user_id: int) -> list[Sample]:
-        """Return all samples registered by the given user."""
-        return [s for s in self._store.values() if s.get_created_by_id() == user_id]
+        with db_session() as session:
+            rows = session.query(SampleModel).filter_by(created_by=user_id).all()
+            return [self._to_domain(r, []) for r in rows]
 
     # ── Update ─────────────────────────────────────────────────────────────
     def update(self, sample: Sample) -> None:
         """
-        Persist changes to an existing sample.
-
-        Parameters
-        ----------
-        sample : Sample — the modified sample object
-
-        Raises
-        ------
-        KeyError — if the sample does not exist in the store
+        Persist status change and any new audit entries.
+        Compares existing DB audit count vs domain object to save only new entries.
         """
-        sid = sample.get_sample_id()
-        if sid not in self._store:
-            raise KeyError(f"Sample {sid!r} not found. Cannot update.")
-        self._store[sid] = sample
+        with db_session() as session:
+            orm = session.query(SampleModel).filter_by(
+                sample_id=sample.get_sample_id()
+            ).first()
+            if orm is None:
+                raise KeyError(f"Sample {sample.get_sample_id()!r} not found.")
+
+            orm.status           = sample.get_status().value
+            orm.storage_location = sample.get_storage_location()
+            orm.notes            = sample.get_notes()
+            orm.updated_at       = sample.get_updated_at()
+
+            # Save new audit entries (those beyond what's already in DB)
+            existing = (session.query(AuditEntryModel)
+                        .filter_by(sample_id=sample.get_sample_id())
+                        .count())
+            domain_log = sample.get_audit_log()
+            for entry in domain_log[existing:]:
+                ae = AuditEntryModel(
+                    sample_id=entry.get_sample_id(),
+                    old_status=entry.get_old_status().value,
+                    new_status=entry.get_new_status().value,
+                    changed_by=entry.get_changed_by_id(),
+                    timestamp=entry.get_timestamp(),
+                )
+                session.add(ae)
 
     # ── Delete ─────────────────────────────────────────────────────────────
     def delete(self, sample_id: str) -> None:
-        """
-        Remove a sample from the store.
-        Note: in production this will be a soft-delete (setting a deleted_at flag).
-        """
-        if sample_id not in self._store:
-            raise KeyError(f"Sample {sample_id!r} not found. Cannot delete.")
-        del self._store[sample_id]
+        with db_session() as session:
+            orm = session.query(SampleModel).filter_by(sample_id=sample_id).first()
+            if orm is None:
+                raise KeyError(f"Sample {sample_id!r} not found.")
+            session.delete(orm)
 
     def count(self) -> int:
-        """Return the total number of samples in the store."""
-        return len(self._store)
+        with db_session() as session:
+            return session.query(SampleModel).count()
 
     def __repr__(self) -> str:
         return f"<SampleRepository samples={self.count()}>"

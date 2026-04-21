@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>LabTrack</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;background:#F0F2F5;color:#333}
+/* 16px top padding keeps button click-zones below the macOS fullscreen
+   auto-hiding menu-bar trigger zone (~10-12px from viewport top). */
+nav{background:#1F3864;padding:16px 24px 0;display:flex;align-items:center;height:64px;gap:4px}
+nav .brand{color:#fff;font-weight:bold;font-size:16px;margin-right:20px}
+.tab{background:transparent;border:0;color:#B0C4DE;font:inherit;font-size:14px;cursor:pointer;padding:0 14px;height:40px;border-radius:4px}
+.tab:hover,.tab.active{background:#2E75B6;color:#fff}
+.tab[hidden]{display:none}
+nav .right{margin-left:auto;display:flex;align-items:center;gap:16px;color:#B0C4DE;font-size:13px}
+nav .right .who{color:#fff;font-weight:bold}
+.page{display:none;padding:24px;max-width:1100px;margin:0 auto}
+.page.active{display:block}
+#login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh}
+.login-box{background:#fff;border-radius:8px;border:1px solid #DDD;padding:36px 32px;width:340px;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.login-box h1{color:#1F3864;text-align:center;font-size:22px;margin-bottom:4px}
+.login-box .sub{color:#888;text-align:center;font-size:13px;margin-bottom:24px}
+.hint{background:#F0F6FF;border:1px solid #C8DDF5;border-radius:6px;padding:12px;margin-bottom:16px;font-size:12px;color:#2E5F9E;line-height:1.8}
+.hint b{color:#1F3864}
+label{display:block;font-size:12px;color:#666;margin-bottom:4px;margin-top:14px}
+input,select,textarea{width:100%;padding:8px 10px;border:1px solid #BBB;border-radius:4px;font-size:14px;font-family:Arial}
+input:focus,select:focus{outline:none;border-color:#2E75B6}
+textarea{height:72px;resize:vertical}
+.btn{display:inline-block;padding:9px 20px;border-radius:4px;border:none;cursor:pointer;font-size:14px;font-weight:bold}
+.btn:hover{opacity:.88} .btn:disabled{opacity:.5;cursor:default}
+.btn-primary{background:#2E75B6;color:#fff}
+.btn-secondary{background:#EEE;color:#333;border:1px solid #CCC}
+.btn-sm{padding:5px 12px;font-size:12px}
+.btn-full{width:100%;margin-top:20px}
+.card{background:#fff;border-radius:8px;border:1px solid #DDD;padding:20px;margin-bottom:16px}
+.card-title{font-size:15px;font-weight:bold;color:#1F3864;margin-bottom:14px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.stat{background:#fff;border-radius:8px;border:1px solid #DDD;padding:16px 18px}
+.stat .lbl{font-size:11px;color:#888;margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px}
+.stat .val{font-size:28px;font-weight:bold}
+.stat.blue .val{color:#2E75B6} .stat.green .val{color:#1D9E75}
+.stat.amber .val{color:#BA7517} .stat.dark .val{color:#1F3864}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{background:#F8F8F8;text-align:left;padding:9px 12px;font-size:12px;color:#555;border-bottom:2px solid #E0E0E0;white-space:nowrap}
+td{padding:9px 12px;border-bottom:1px solid #F0F0F0;vertical-align:middle}
+tr:last-child td{border-bottom:none} tr:hover td{background:#FAFCFF}
+.badge{display:inline-block;padding:3px 9px;border-radius:10px;font-size:11px;font-weight:bold}
+.b-Collected{background:#E1F5EE;color:#0F6E56} .b-Processing{background:#FFF3CD;color:#856404}
+.b-Stored{background:#E6F1FB;color:#185FA5} .b-Consumed{background:#F1EFE8;color:#444}
+.b-Discarded{background:#F8D7DA;color:#842029}
+.b-researcher{background:#E1F5EE;color:#0F6E56} .b-technician{background:#E6F1FB;color:#185FA5}
+.b-admin{background:#F8D7DA;color:#842029} .b-viewer{background:#F1EFE8;color:#444}
+.alert{padding:10px 14px;border-radius:4px;margin-bottom:14px;font-size:14px;display:none}
+.alert.show{display:block}
+.alert-err{background:#F8D7DA;color:#842029;border:1px solid #F5C2C7}
+.alert-ok{background:#D1E7DD;color:#0F5132;border:1px solid #BADBCC}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:8px;padding:28px;width:520px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+.modal h3{color:#1F3864;margin-bottom:16px;font-size:16px}
+.modal-footer{margin-top:20px;display:flex;gap:10px;justify-content:flex-end}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.filter-bar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end}
+.filter-bar .f{flex:1;min-width:120px} .filter-bar label{margin-top:0}
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.audit-row{font-size:13px;padding:7px 12px;border-bottom:1px solid #EEE;display:grid;grid-template-columns:190px 110px 110px 1fr}
+.audit-row.head{background:#F8F8F8;font-weight:bold;font-size:12px;color:#555;border-bottom:2px solid #DDD}
+.empty{text-align:center;padding:32px;color:#AAA;font-size:14px}
+.detail-grid{display:grid;grid-template-columns:145px 1fr;gap:4px 0;font-size:14px}
+.detail-grid .key{color:#888;padding:5px 0} .detail-grid .val{padding:5px 0;font-weight:500}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid #ccc;border-top-color:#2E75B6;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* Click-debug overlay — visible even in fullscreen. Pinned to the bottom so it
+   doesn't interfere with the nav. Pointer-events:none so it never blocks clicks. */
+
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-wrap">
+  <div class="login-box">
+    <h1>LabTrack</h1>
+    <p class="sub">Laboratory Sample Management System</p>
+    <div class="hint">
+      <b>Demo accounts:</b><br>
+      alice / alice123 → researcher<br>
+      bob &nbsp;/ bob123 &nbsp;&nbsp;→ technician<br>
+      carol / carol123 → admin<br>
+      dave &nbsp;/ dave123 &nbsp;&nbsp;→ viewer
+    </div>
+    <div id="login-err" class="alert alert-err"></div>
+    <label>Username</label>
+    <input id="un" type="text" placeholder="username" autocomplete="username">
+    <label>Password</label>
+    <input id="pw" type="password" placeholder="password" autocomplete="current-password">
+    <button class="btn btn-primary btn-full" id="login-btn" onclick="doLogin()">Log in</button>
+  </div>
+</div>
+
+<!-- APP SHELL -->
+<div id="app" style="display:none">
+  <nav id="main-nav">
+    <span class="brand">LabTrack</span>
+    <button type="button" class="tab" id="tab-dashboard"
+            onclick="switchTab('dashboard')"
+            onmousedown="tapTab('dashboard', event)"
+            onpointerdown="tapTab('dashboard', event)"
+            ontouchend="tapTab('dashboard', event)">Dashboard</button>
+    <button type="button" class="tab" id="tab-samples"
+            onclick="switchTab('samples')"
+            onmousedown="tapTab('samples', event)"
+            onpointerdown="tapTab('samples', event)"
+            ontouchend="tapTab('samples', event)">Samples</button>
+    <button type="button" class="tab" id="tab-admin"
+            onclick="switchTab('admin')"
+            onmousedown="tapTab('admin', event)"
+            onpointerdown="tapTab('admin', event)"
+            ontouchend="tapTab('admin', event)" hidden>Admin</button>
+    <div class="right">
+      <span class="who" id="nav-user"></span>
+      <button type="button" class="tab" id="tab-logout" onclick="doLogout()">Logout</button>
+    </div>
+  </nav>
+
+  <!-- DASHBOARD -->
+  <div id="page-dashboard" class="page">
+    <div class="stats">
+      <div class="stat dark"><div class="lbl">Total samples</div><div class="val" id="st-total">—</div></div>
+      <div class="stat green"><div class="lbl">Collected</div><div class="val" id="st-collected">—</div></div>
+      <div class="stat amber"><div class="lbl">Processing</div><div class="val" id="st-processing">—</div></div>
+      <div class="stat blue"><div class="lbl">Stored</div><div class="val" id="st-stored">—</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Recent samples</div>
+      <table>
+        <thead><tr><th>Sample ID</th><th>Type</th><th>Organism</th><th>Status</th><th>Location</th><th>Registered</th></tr></thead>
+        <tbody id="dash-table"><tr><td colspan="6" class="empty"><span class="spin"></span>Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SAMPLES -->
+  <div id="page-samples" class="page">
+    <div class="topbar">
+      <h2 style="color:#1F3864">Sample inventory</h2>
+      <button class="btn btn-primary btn-sm" id="btn-register" onclick="openRegister()" style="display:none">+ Register sample</button>
+    </div>
+    <div class="filter-bar">
+      <div class="f"><label>Type</label><input id="f-type" placeholder="e.g. blood"></div>
+      <div class="f"><label>Status</label>
+        <select id="f-status">
+          <option value="">All statuses</option>
+          <option>Collected</option><option>Processing</option>
+          <option>Stored</option><option>Consumed</option><option>Discarded</option>
+        </select>
+      </div>
+      <div class="f"><label>Location</label><input id="f-loc" placeholder="e.g. Freezer-A1"></div>
+      <div><label>&nbsp;</label><button class="btn btn-secondary" onclick="loadSamples()">Search</button></div>
+    </div>
+    <div class="card" style="padding:0">
+      <table>
+        <thead><tr><th>Sample ID</th><th>Type</th><th>Organism</th><th>Status</th><th>Location</th><th>Date</th><th></th></tr></thead>
+        <tbody id="sample-table"><tr><td colspan="7" class="empty"><span class="spin"></span>Loading…</td></tr></tbody>
+      </table>
+    </div>
+    <p id="sample-count" style="font-size:13px;color:#888;margin-top:8px"></p>
+  </div>
+
+  <!-- SAMPLE DETAIL -->
+  <div id="page-detail" class="page">
+    <div class="topbar">
+      <h2 id="detail-title" style="color:#1F3864">Sample detail</h2>
+      <button class="btn btn-secondary btn-sm" onclick="show('samples')">← Back</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 290px;gap:16px">
+      <div class="card">
+        <div class="card-title">Sample information</div>
+        <div class="detail-grid" id="detail-info"></div>
+      </div>
+      <div class="card" id="status-panel">
+        <div class="card-title">Lifecycle status</div>
+        <div id="current-badge" style="margin-bottom:14px"></div>
+        <div id="update-controls">
+          <label>Update to</label>
+          <select id="next-status"></select>
+          <button class="btn btn-primary btn-sm" style="margin-top:10px;width:100%" onclick="doUpdateStatus()">Update status</button>
+        </div>
+        <div id="status-msg" class="alert" style="margin-top:10px"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Audit log</div>
+      <div class="audit-row head"><span>Timestamp</span><span>From</span><span>To</span><span>Changed by</span></div>
+      <div id="audit-log"><div class="empty">No status changes recorded yet.</div></div>
+    </div>
+  </div>
+
+  <!-- ADMIN -->
+  <div id="page-admin" class="page">
+    <div class="topbar">
+      <h2 style="color:#1F3864">User management</h2>
+      <button class="btn btn-primary btn-sm" onclick="openCreateUser()">+ New user</button>
+    </div>
+    <div id="admin-msg" class="alert"></div>
+    <div class="card" style="padding:0">
+      <table>
+        <thead><tr><th>Username</th><th>Email</th><th>Role</th><th>Active</th><th>Created</th><th style="text-align:right">Actions</th></tr></thead>
+        <tbody id="user-table"><tr><td colspan="6" class="empty"><span class="spin"></span>Loading…</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="card-title">Bulk CSV import</div>
+      <p style="font-size:13px;color:#666;margin-bottom:12px">
+        Required columns: <code>sample_type, source_organism, collection_date (YYYY-MM-DD), storage_location</code> — optional: <code>notes</code>
+      </p>
+      <div id="csv-drop-zone" style="border:2px dashed #CCCCCC;border-radius:8px;padding:28px;text-align:center;cursor:pointer;transition:border-color .2s"
+           onclick="$('csv-file-input').click()"
+           ondragover="event.preventDefault();this.style.borderColor='#2E75B6'"
+           ondragleave="this.style.borderColor='#CCCCCC'"
+           ondrop="handleCsvDrop(event)">
+        <p style="color:#888;font-size:14px">Drop a CSV file here or click to choose</p>
+        <input type="file" id="csv-file-input" accept=".csv" style="display:none" onchange="handleCsvFile(this.files[0])">
+      </div>
+      <div id="csv-result" class="alert" style="margin-top:12px"></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- REGISTER MODAL -->
+<div class="modal-bg" id="register-modal">
+  <div class="modal">
+    <h3>Register new sample</h3>
+    <div id="reg-err" class="alert alert-err"></div>
+    <div id="reg-ok"  class="alert alert-ok"></div>
+    <div class="row2">
+      <div><label>Sample type *</label><input id="r-type" placeholder="blood, DNA, tissue…"></div>
+      <div><label>Source organism *</label><input id="r-org" placeholder="Homo sapiens"></div>
+    </div>
+    <div class="row2">
+      <div><label>Collection date *</label><input id="r-date" type="date"></div>
+      <div><label>Storage location *</label><input id="r-loc" placeholder="Freezer-A1"></div>
+    </div>
+    <label>Notes</label>
+    <textarea id="r-notes" placeholder="Optional…"></textarea>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeRegister()">Cancel</button>
+      <button class="btn btn-primary" id="reg-btn" onclick="doRegister()">Register sample</button>
+    </div>
+  </div>
+</div>
+
+<!-- CREATE USER MODAL -->
+<div class="modal-bg" id="create-user-modal">
+  <div class="modal">
+    <h3>Create new user</h3>
+    <div id="cu-err" class="alert alert-err"></div>
+    <div class="row2">
+      <div><label>Username *</label><input id="cu-username" placeholder="e.g. jdoe"></div>
+      <div><label>Email *</label><input id="cu-email" type="email" placeholder="name@lab.ch"></div>
+    </div>
+    <div class="row2">
+      <div><label>Password * <span style="color:#AAA;font-weight:normal">(min. 8 chars)</span></label><input id="cu-password" type="password"></div>
+      <div><label>Role *</label>
+        <select id="cu-role">
+          <option value="researcher">Researcher</option>
+          <option value="technician">Technician</option>
+          <option value="admin">Admin</option>
+          <option value="viewer">Viewer</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeCreateUser()">Cancel</button>
+      <button class="btn btn-primary" id="cu-btn" onclick="doCreateUser()">Create user</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT USER MODAL -->
+<div class="modal-bg" id="edit-user-modal">
+  <div class="modal">
+    <h3 id="eu-title">Edit user</h3>
+    <div id="eu-err" class="alert alert-err"></div>
+    <label>Username</label>
+    <input id="eu-username" disabled style="background:#F5F5F5;color:#888">
+    <div class="row2">
+      <div><label>Email</label><input id="eu-email" type="email"></div>
+      <div><label>Role</label>
+        <select id="eu-role">
+          <option value="researcher">Researcher</option>
+          <option value="technician">Technician</option>
+          <option value="admin">Admin</option>
+          <option value="viewer">Viewer</option>
+        </select>
+      </div>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:14px">
+      <input id="eu-active" type="checkbox" style="width:auto;margin:0">
+      <span>Account active</span>
+    </label>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeEditUser()">Cancel</button>
+      <button class="btn btn-primary" id="eu-btn" onclick="doEditUser()">Save changes</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let currentUser = null;
+let detailId = null;
+
+const badge = s => `<span class="badge b-${s}">${s}</span>`;
+
+async function api(method, path, body) {
+  const opts = { method, credentials: 'include', headers: {} };
+  if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+  const r = await fetch(path, opts);
+  const data = await r.json().catch(() => ({}));
+  return { ok: r.ok, status: r.status, data };
+}
+
+// ── AUTH ─────────────────────────────────────────────────────────────────────
+async function doLogin() {
+  const username = $('un').value.trim();
+  const password = $('pw').value;
+  if (!username || !password) { showAlert('login-err', 'Enter username and password'); return; }
+  $('login-btn').disabled = true;
+  $('login-btn').innerHTML = '<span class="spin"></span>Logging in…';
+  const { ok, data } = await api('POST', '/api/auth/login', { username, password });
+  $('login-btn').disabled = false;
+  $('login-btn').textContent = 'Log in';
+  if (!ok) { showAlert('login-err', data.error || 'Login failed'); return; }
+  hideAlert('login-err');
+  currentUser = data;
+  $('login-wrap').style.display = 'none';
+  $('app').style.display = 'block';
+  $('nav-user').textContent = `${data.username} (${data.role})`;
+  if (data.role === 'admin') $('tab-admin').hidden = false;
+  if (['researcher', 'admin'].includes(data.role)) $('btn-register').style.display = 'inline-block';
+  switchTab('dashboard');
+}
+
+async function doLogout() {
+  await api('POST', '/api/auth/logout');
+  currentUser = null;
+  $('app').style.display = 'none';
+  $('login-wrap').style.display = 'flex';
+  $('un').value = ''; $('pw').value = '';
+  $('tab-admin').hidden = true;
+  $('btn-register').style.display = 'none';
+}
+
+// ── NAV ───────────────────────────────────────────────────────────────────────
+// The nav uses plain <button class="tab"> elements with onclick="switchTab(...)".
+// switchTab toggles the .active class on the clicked tab and its corresponding
+// page, then runs the relevant loader. Keep it simple — no delegation, no
+// preventDefault, no stopPropagation.
+// Debounce so onpointerdown + onmousedown + onclick (all three firing for the
+// same tap) don't cause switchTab to run three times back-to-back.
+let _lastTapAt = 0;
+let _lastTapName = '';
+
+function tapTab(name, e) {
+  // Track that this tap fired at least one input event; if `click` fires later
+  // we silently dedupe it in switchTab.
+  const now = Date.now();
+  if (name === _lastTapName && now - _lastTapAt < 400) return;
+  _lastTapName = name;
+  _lastTapAt = now;
+  if (e && e.preventDefault) e.preventDefault();
+  switchTab(name, /*fromTap=*/true);
+}
+
+function switchTab(name, fromTap) {
+  // Dedupe trailing `click` after a `pointerdown`/`mousedown` already handled it
+  if (!fromTap) {
+    const now = Date.now();
+    if (name === _lastTapName && now - _lastTapAt < 400) return;
+    _lastTapName = name;
+    _lastTapAt = now;
+  }
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('#main-nav .tab').forEach(t => t.classList.remove('active'));
+  const page = document.getElementById('page-' + name);
+  const tab  = document.getElementById('tab-'  + name);
+  if (page) page.classList.add('active');
+  if (tab)  tab.classList.add('active');
+
+  if (name === 'dashboard') loadDashboard();
+  else if (name === 'samples') loadSamples();
+  else if (name === 'admin') loadUsers();
+}
+
+// Legacy alias so existing callers (openDetail, post-register redirect,
+// "Back" button on the detail page) keep working without churn.
+function show(name) { switchTab(name); }
+
+// ── DASHBOARD ─────────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  const { ok, data } = await api('GET', '/api/samples/?per_page=100');
+  if (!ok) return;
+  const samples = data.samples || [];
+  const count = s => samples.filter(x => x.status === s).length;
+  $('st-total').textContent      = data.total;
+  $('st-collected').textContent  = count('Collected');
+  $('st-processing').textContent = count('Processing');
+  $('st-stored').textContent     = count('Stored');
+  $('dash-table').innerHTML = samples.length === 0
+    ? '<tr><td colspan="6" class="empty">No samples yet — register one!</td></tr>'
+    : samples.slice(0, 10).map(s => `<tr>
+        <td style="font-family:monospace;font-size:13px;cursor:pointer;color:#2E75B6" onclick="openDetail('${s.sample_id}')">${s.sample_id}</td>
+        <td>${s.sample_type}</td><td>${s.source_organism}</td>
+        <td>${badge(s.status)}</td><td>${s.storage_location}</td>
+        <td style="color:#888;font-size:12px">${s.collection_date.split('T')[0]}</td>
+      </tr>`).join('');
+}
+
+// ── SAMPLES ───────────────────────────────────────────────────────────────────
+async function loadSamples() {
+  $('sample-table').innerHTML = '<tr><td colspan="7" class="empty"><span class="spin"></span>Loading…</td></tr>';
+  const type   = $('f-type').value.trim();
+  const status = $('f-status').value;
+  const loc    = $('f-loc').value.trim();
+  let qs = '?per_page=100';
+  if (type)   qs += `&type=${encodeURIComponent(type)}`;
+  if (status) qs += `&status=${encodeURIComponent(status)}`;
+  if (loc)    qs += `&location=${encodeURIComponent(loc)}`;
+  const { ok, data } = await api('GET', '/api/samples/' + qs);
+  if (!ok) { $('sample-table').innerHTML = '<tr><td colspan="7" class="empty">Error loading samples.</td></tr>'; return; }
+  const samples = data.samples || [];
+  $('sample-count').textContent = `Showing ${samples.length} of ${data.total} samples`;
+  $('sample-table').innerHTML = samples.length === 0
+    ? '<tr><td colspan="7" class="empty">No samples match the filter.</td></tr>'
+    : samples.map(s => `<tr>
+        <td style="font-family:monospace;font-size:13px">${s.sample_id}</td>
+        <td>${s.sample_type}</td><td>${s.source_organism}</td>
+        <td>${badge(s.status)}</td><td>${s.storage_location}</td>
+        <td>${s.collection_date.split('T')[0]}</td>
+        <td><button class="btn btn-secondary btn-sm" onclick="openDetail('${s.sample_id}')">View</button></td>
+      </tr>`).join('');
+}
+
+// ── REGISTER ──────────────────────────────────────────────────────────────────
+function openRegister() {
+  $('r-type').value = $('r-org').value = $('r-loc').value = $('r-notes').value = '';
+  $('r-date').value = new Date().toISOString().split('T')[0];
+  hideAlert('reg-err'); hideAlert('reg-ok');
+  $('register-modal').classList.add('open');
+}
+function closeRegister() { $('register-modal').classList.remove('open'); }
+
+async function doRegister() {
+  const type = $('r-type').value.trim(), org = $('r-org').value.trim();
+  const date = $('r-date').value, loc = $('r-loc').value.trim();
+  if (!type || !org || !date || !loc) { showAlert('reg-err', 'All fields marked * are required'); return; }
+  $('reg-btn').disabled = true;
+  const { ok, data } = await api('POST', '/api/samples/', {
+    sample_type: type, source_organism: org,
+    collection_date: date, storage_location: loc, notes: $('r-notes').value
+  });
+  $('reg-btn').disabled = false;
+  if (!ok) { showAlert('reg-err', data.error || 'Registration failed'); return; }
+  hideAlert('reg-err');
+  showAlertEl('reg-ok', 'alert-ok', `✓ Sample ${data.sample_id} registered!`);
+  setTimeout(() => { closeRegister(); loadSamples(); loadDashboard(); }, 1200);
+}
+
+// ── DETAIL ────────────────────────────────────────────────────────────────────
+async function openDetail(id) {
+  detailId = id;
+  show('detail');
+  $('detail-title').textContent = `Sample — ${id}`;
+  $('detail-info').innerHTML = '<span style="color:#AAA">Loading…</span>';
+  $('audit-log').innerHTML = '<div class="empty"><span class="spin"></span>Loading…</div>';
+
+  const { ok, data } = await api('GET', `/api/samples/${id}`);
+  if (!ok) { $('detail-info').innerHTML = '<span style="color:#C00">Sample not found.</span>'; return; }
+
+  $('detail-title').textContent = `Sample — ${data.sample_id}`;
+  $('detail-info').innerHTML = [
+    ['Sample ID',    `<span style="font-family:monospace">${data.sample_id}</span>`],
+    ['Type',          data.sample_type],
+    ['Organism',      data.source_organism],
+    ['Collection',    data.collection_date.split('T')[0]],
+    ['Location',      data.storage_location],
+    ['Registered by', data.created_by_username || data.created_by_id],
+    ['Notes',         data.notes || '<span style="color:#BBB">—</span>'],
+  ].map(([k,v]) => `<div class="key">${k}</div><div class="val">${v}</div>`).join('');
+
+  $('current-badge').innerHTML = badge(data.status);
+
+  const TRANSITIONS = {
+    Collected:['Processing'], Processing:['Stored'],
+    Stored:['Consumed','Discarded'], Consumed:[], Discarded:[]
+  };
+  const nexts = TRANSITIONS[data.status] || [];
+  const canUpdate = ['researcher','technician','admin'].includes(currentUser?.role);
+  if (canUpdate && nexts.length > 0) {
+    $('update-controls').style.display = 'block';
+    $('next-status').innerHTML = nexts.map(n => `<option>${n}</option>`).join('');
+  } else {
+    $('update-controls').style.display = 'none';
+  }
+  hideAlertEl('status-msg');
+
+  const log = data.audit_log || [];
+  $('audit-log').innerHTML = log.length === 0
+    ? '<div class="empty">No status changes recorded yet.</div>'
+    : [...log].reverse().map(e => `
+      <div class="audit-row">
+        <span>${e.timestamp.replace('T',' ').split('.')[0]}</span>
+        <span>${badge(e.old_status)}</span>
+        <span>${badge(e.new_status)}</span>
+        <span style="color:#555">${e.changed_by_username || e.changed_by_id}</span>
+      </div>`).join('');
+}
+
+async function doUpdateStatus() {
+  const newStatus = $('next-status').value;
+  const { ok, data } = await api('PUT', `/api/samples/${detailId}/status`, { status: newStatus });
+  if (!ok) { showAlertEl('status-msg', 'alert-err', data.error || 'Update failed'); return; }
+  showAlertEl('status-msg', 'alert-ok', `✓ Status updated to ${newStatus}`);
+  setTimeout(() => openDetail(detailId), 800);
+}
+
+// ── ADMIN ─────────────────────────────────────────────────────────────────────
+let usersCache = [];
+
+async function loadUsers() {
+  hideAlertEl('admin-msg');
+  const { ok, data } = await api('GET', '/api/users/');
+  if (!ok) { $('user-table').innerHTML = '<tr><td colspan="6" class="empty">Access denied.</td></tr>'; return; }
+  usersCache = data.users || [];
+  renderUsers();
+}
+
+function handleCsvDrop(e) {
+  e.preventDefault();
+  $('csv-drop-zone').style.borderColor = '#CCCCCC';
+  const file = e.dataTransfer.files[0];
+  if (file) handleCsvFile(file);
+}
+
+async function handleCsvFile(file) {
+  if (!file || !file.name.endsWith('.csv')) {
+    showAlertEl('csv-result', 'alert-err', 'Please select a .csv file.');
+    return;
+  }
+  $('csv-drop-zone').querySelector('p').textContent = `Uploading ${file.name}…`;
+  const form = new FormData();
+  form.append('file', file);
+  try {
+    const resp = await fetch('/api/samples/import', {
+      method: 'POST', credentials: 'include', body: form
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      showAlertEl('csv-result', 'alert-err', data.error || 'Import failed.');
+    } else {
+      const msg = `✓ Imported ${data.imported} sample(s).` +
+        (data.errors.length ? `  ${data.errors.length} row(s) skipped: ${data.errors.slice(0,3).join('; ')}` : '');
+      showAlertEl('csv-result', data.errors.length ? 'alert-ok' : 'alert-ok', msg);
+      loadDashboard();
+    }
+  } catch(e) {
+    showAlertEl('csv-result', 'alert-err', 'Network error during upload.');
+  }
+  $('csv-drop-zone').querySelector('p').textContent = 'Drop a CSV file here or click to choose';
+}
+
+function renderUsers() {
+  if (usersCache.length === 0) {
+    $('user-table').innerHTML = '<tr><td colspan="6" class="empty">No users found.</td></tr>';
+    return;
+  }
+  $('user-table').innerHTML = usersCache.map(u => {
+    const isSelf = currentUser && u.user_id === currentUser.user_id;
+    const toggleLabel = u.is_active ? 'Deactivate' : 'Activate';
+    const toggleStyle = u.is_active
+      ? 'background:#F8D7DA;color:#842029;border:1px solid #F5C2C7'
+      : 'background:#D1E7DD;color:#0F5132;border:1px solid #BADBCC';
+    const toggleBtn = isSelf
+      ? '<span style="color:#AAA;font-size:12px">you</span>'
+      : `<button class="btn btn-sm" style="${toggleStyle}" onclick="doToggleActive(${u.user_id})">${toggleLabel}</button>`;
+    return `<tr>
+      <td><b>${u.username}</b></td><td>${u.email}</td>
+      <td>${badge(u.role)}</td>
+      <td style="color:${u.is_active?'#1D9E75':'#C00'};font-weight:bold">${u.is_active?'Active':'Inactive'}</td>
+      <td style="color:#888;font-size:12px">${u.created_at.split('T')[0]}</td>
+      <td style="text-align:right;white-space:nowrap">
+        <button class="btn btn-secondary btn-sm" onclick="openEditUser(${u.user_id})">Edit</button>
+        ${toggleBtn}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// Create user
+function openCreateUser() {
+  $('cu-username').value = $('cu-email').value = $('cu-password').value = '';
+  $('cu-role').value = 'researcher';
+  hideAlert('cu-err');
+  $('create-user-modal').classList.add('open');
+}
+function closeCreateUser() { $('create-user-modal').classList.remove('open'); }
+
+async function doCreateUser() {
+  const payload = {
+    username: $('cu-username').value.trim(),
+    email:    $('cu-email').value.trim(),
+    password: $('cu-password').value,
+    role:     $('cu-role').value,
+  };
+  if (!payload.username || !payload.email || !payload.password) {
+    showAlert('cu-err', 'Username, email and password are required.'); return;
+  }
+  if (payload.password.length < 8) {
+    showAlert('cu-err', 'Password must be at least 8 characters.'); return;
+  }
+  $('cu-btn').disabled = true;
+  const { ok, data } = await api('POST', '/api/users/', payload);
+  $('cu-btn').disabled = false;
+  if (!ok) { showAlert('cu-err', data.error || 'Create failed'); return; }
+  closeCreateUser();
+  showAlertEl('admin-msg', 'alert-ok', `✓ User '${data.username}' created.`);
+  loadUsers();
+}
+
+// Edit user
+let editUserId = null;
+
+function openEditUser(userId) {
+  const u = usersCache.find(x => x.user_id === userId);
+  if (!u) return;
+  editUserId = userId;
+  $('eu-title').textContent = `Edit user — ${u.username}`;
+  $('eu-username').value = u.username;
+  $('eu-email').value    = u.email;
+  $('eu-role').value     = u.role;
+  $('eu-active').checked = u.is_active;
+  hideAlert('eu-err');
+  $('edit-user-modal').classList.add('open');
+}
+function closeEditUser() { $('edit-user-modal').classList.remove('open'); editUserId = null; }
+
+async function doEditUser() {
+  if (editUserId === null) return;
+  const payload = {
+    email:     $('eu-email').value.trim(),
+    role:      $('eu-role').value,
+    is_active: $('eu-active').checked,
+  };
+  if (!payload.email) { showAlert('eu-err', 'Email is required.'); return; }
+  $('eu-btn').disabled = true;
+  const { ok, data } = await api('PUT', `/api/users/${editUserId}`, payload);
+  $('eu-btn').disabled = false;
+  if (!ok) { showAlert('eu-err', data.error || 'Update failed'); return; }
+  closeEditUser();
+  showAlertEl('admin-msg', 'alert-ok', `✓ User '${data.username}' updated.`);
+  loadUsers();
+}
+
+// Toggle active (activate/deactivate)
+async function doToggleActive(userId) {
+  const u = usersCache.find(x => x.user_id === userId);
+  if (!u) return;
+  if (u.is_active) {
+    if (!confirm(`Deactivate user '${u.username}'? They will no longer be able to log in.`)) return;
+    const { ok, data } = await api('DELETE', `/api/users/${userId}`);
+    if (!ok) { showAlertEl('admin-msg', 'alert-err', data.error || 'Deactivation failed'); return; }
+    showAlertEl('admin-msg', 'alert-ok', data.message || 'User deactivated.');
+  } else {
+    const { ok, data } = await api('PUT', `/api/users/${userId}`, { is_active: true });
+    if (!ok) { showAlertEl('admin-msg', 'alert-err', data.error || 'Activation failed'); return; }
+    showAlertEl('admin-msg', 'alert-ok', `✓ User '${u.username}' reactivated.`);
+  }
+  loadUsers();
+}
+
+// ── ALERT HELPERS ─────────────────────────────────────────────────────────────
+function showAlert(id, msg) { const el=$(id); el.textContent=msg; el.className='alert alert-err show'; }
+function hideAlert(id)       { const el=$(id); el.className='alert alert-err'; }
+function showAlertEl(id,cls,msg){ const el=$(id); el.textContent=msg; el.className=`alert ${cls} show`; }
+function hideAlertEl(id)     { const el=$(id); el.className='alert'; }
+
+// ── KEY BINDINGS ─────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  $('pw').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  $('un').addEventListener('keydown', e => { if (e.key === 'Enter') $('pw').focus(); });
+});
+</script>
+</body>
+</html>

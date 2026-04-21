@@ -96,12 +96,10 @@ def test_admin_permissions():
 # ── SampleService integration tests ───────────────────────────────────────
 
 def setup_service():
+    # Users 1-4 are pre-seeded by the reset_db fixture in conftest.py:
+    #   1=alice/researcher, 2=bob/technician, 3=carol/admin, 4=dave/viewer
     sample_repo = SampleRepository()
     user_repo = UserRepository()
-    researcher = Researcher(1, "alice", "alice@lab.ch", "hash")
-    viewer = Viewer(2, "carol", "carol@lab.ch", "hash")
-    user_repo.add(researcher)
-    user_repo.add(viewer)
     service = SampleService(sample_repo, user_repo)
     return service
 
@@ -120,7 +118,7 @@ def test_service_register_sample_permission_denied():
     service = setup_service()
     with pytest.raises(PermissionError):
         service.register_sample(
-            requesting_user_id=2,  # Viewer — no permission
+            requesting_user_id=4,  # Viewer (dave) — no permission
             sample_type="DNA",
             source_organism="Mus musculus",
             collection_date=datetime(2025, 4, 5),

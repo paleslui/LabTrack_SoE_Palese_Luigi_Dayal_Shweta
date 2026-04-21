@@ -117,8 +117,15 @@ class TestPermissionMatrix:
         ("viewer_client",     403),
     ])
     def test_update_status_permission(self, role_fixture, expected_code, request):
+        # Pre-register a sample so the update target exists.
+        # Viewer is rejected by the role decorator before the sample is touched,
+        # so it returns 403 regardless.
+        researcher = request.getfixturevalue("researcher_client")
+        reg = researcher.post("/api/samples/", json=VALID_SAMPLE_PAYLOAD)
+        sample_id = reg.get_json().get("sample_id")
+
         client = request.getfixturevalue(role_fixture)
-        resp = client.put("/api/samples/LT-2025-0001/status",
+        resp = client.put(f"/api/samples/{sample_id}/status",
                           json={"status": "Processing"})
         assert resp.status_code == expected_code
 
@@ -224,17 +231,18 @@ class TestAdminUserManagementCycle:
     }
 
     def test_create_update_deactivate_cycle(self, admin_client):
-        # Create
+        # 4 users are pre-seeded (ids 1-4), so a freshly created one gets id=5
         create = admin_client.post("/api/users/", json=self.NEW_USER)
         assert create.status_code == 201
+        new_id = create.get_json()["user_id"]
 
         # Update role to viewer
-        update = admin_client.put("/api/users/10",
+        update = admin_client.put(f"/api/users/{new_id}",
                                   json={"role": "viewer"})
         assert update.status_code == 200
 
         # Deactivate
-        deactivate = admin_client.delete("/api/users/10")
+        deactivate = admin_client.delete(f"/api/users/{new_id}")
         assert deactivate.status_code == 200
 
     def test_non_admin_cannot_create_user(self, researcher_client):

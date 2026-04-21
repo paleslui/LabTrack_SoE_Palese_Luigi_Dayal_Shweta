@@ -1,82 +1,83 @@
 """
 repositories/user_repository.py
 ---------------------------------
-Data access layer for User objects.
-
-Relationship:
-  - UserRepository aggregates User objects.
-  - Used by the authentication service to look up users by username or ID.
-
-Design note (Stage 5):
-  The Singleton pattern will be applied here alongside SampleRepository
-  to ensure a single shared user store at runtime.
+SQLAlchemy-backed data access layer for User objects.
 """
 
-from models.user import User
 from typing import Optional
+from models.user import User
+from patterns.user_factory import UserFactory
+from database.db import db_session
+from database.models import UserModel
 
 
 class UserRepository:
-    """
-    Provides CRUD operations and lookup for User records.
 
-    Uses an in-memory store for Stage 3. Will be backed by SQLAlchemy in Stage 7.
+    @staticmethod
+    def _to_domain(orm: UserModel) -> User:
+        user = UserFactory.create(
+            user_id=orm.user_id,
+            username=orm.username,
+            email=orm.email,
+            password_hash=orm.password_hash,
+            role=orm.role,
+        )
+        user._is_active = orm.is_active
+        user._created_at = orm.created_at
+        return user
 
-    Attributes
-    ----------
-    _by_id       : dict[int, User]  — primary lookup by user_id
-    _by_username : dict[str, User]  — secondary index by username
-    """
-
-    def __init__(self):
-        self._by_id: dict[int, User] = {}
-        self._by_username: dict[str, User] = {}
-        self._counter: int = 0
-
-    # ── Create ─────────────────────────────────────────────────────────────
     def add(self, user: User) -> None:
-        """
-        Persist a new user record.
+        with db_session() as session:
+            existing = session.query(UserModel).filter_by(username=user.get_username()).first()
+            if existing:
+                raise ValueError(f"Username {user.get_username()!r} is already registered.")
+            orm = UserModel(
+                username=user.get_username(),
+                email=user.get_email(),
+                password_hash=user._password_hash,
+                role=user.get_role(),
+                is_active=user.is_active(),
+            )
+            session.add(orm)
 
-        Raises
-        ------
-        ValueError — if the username is already taken
-        """
-        uname = user.get_username()
-        if uname in self._by_username:
-            raise ValueError(f"Username {uname!r} is already registered.")
-        uid = user.get_user_id()
-        self._by_id[uid] = user
-        self._by_username[uname] = user
-
-    # ── Read ───────────────────────────────────────────────────────────────
     def get_by_id(self, user_id: int) -> Optional[User]:
-        """Return the User with the given ID, or None."""
-        return self._by_id.get(user_id)
+        with db_session() as session:
+            orm = session.query(UserModel).filter_by(user_id=user_id).first()
+            return self._to_domain(orm) if orm else None
 
     def get_by_username(self, username: str) -> Optional[User]:
-        """Return the User with the given username, or None."""
-        return self._by_username.get(username)
+        with db_session() as session:
+            orm = session.query(UserModel).filter_by(username=username).first()
+            return self._to_domain(orm) if orm else None
+
+    def get_password_hash(self, username: str) -> Optional[str]:
+        """Return raw bcrypt hash for login verification."""
+        with db_session() as session:
+            orm = session.query(UserModel).filter_by(username=username).first()
+            return orm.password_hash if orm else None
 
     def get_all(self) -> list[User]:
-        """Return all registered users."""
-        return list(self._by_id.values())
+        with db_session() as session:
+            rows = session.query(UserModel).all()
+            return [self._to_domain(r) for r in rows]
 
     def find_by_role(self, role: str) -> list[User]:
-        """Return all users with the given role string."""
-        return [u for u in self._by_id.values() if u.get_role() == role]
+        with db_session() as session:
+            rows = session.query(UserModel).filter_by(role=role).all()
+            return [self._to_domain(r) for r in rows]
 
-    # ── Update ─────────────────────────────────────────────────────────────
     def update(self, user: User) -> None:
-        """Persist changes to an existing user (e.g., email update, deactivation)."""
-        uid = user.get_user_id()
-        if uid not in self._by_id:
-            raise KeyError(f"User {uid} not found. Cannot update.")
-        self._by_id[uid] = user
-        self._by_username[user.get_username()] = user
+        with db_session() as session:
+            orm = session.query(UserModel).filter_by(user_id=user.get_user_id()).first()
+            if orm is None:
+                raise KeyError(f"User {user.get_user_id()} not found.")
+            orm.email     = user.get_email()
+            orm.is_active = user.is_active()
+            orm.role      = user.get_role()
 
     def count(self) -> int:
-        return len(self._by_id)
+        with db_session() as session:
+            return session.query(UserModel).count()
 
     def __repr__(self) -> str:
         return f"<UserRepository users={self.count()}>"

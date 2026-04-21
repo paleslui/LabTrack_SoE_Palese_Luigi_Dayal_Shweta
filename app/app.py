@@ -1,10 +1,8 @@
 """
-app/app.py
-==========
-Flask Application Factory
+app/app.py — Flask Application Factory
 """
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, render_template
 from .routes.auth_routes   import auth_bp
 from .routes.sample_routes import sample_bp
 from .routes.user_routes   import user_bp
@@ -14,7 +12,7 @@ def create_app(config: dict | None = None) -> Flask:
     app = Flask(__name__)
 
     app.config.update(
-        SECRET_KEY="change-me-in-production",
+        SECRET_KEY="labtrack-dev-secret-change-in-production",
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
         DATABASE_URI="sqlite:///labtrack.db",
@@ -24,10 +22,31 @@ def create_app(config: dict | None = None) -> Flask:
     if config:
         app.config.update(config)
 
+    # ── Initialise DB and seed default users ──────────────────────────────
+    if not config or not config.get("TESTING"):
+        from database.db import init_db, seed_default_users
+        init_db()
+        seed_default_users()
+        from database.db import seed_demo_samples
+        seed_demo_samples()
+
+    # ── Register Blueprints ───────────────────────────────────────────────
     app.register_blueprint(auth_bp,   url_prefix="/api/auth")
     app.register_blueprint(sample_bp, url_prefix="/api/samples")
     app.register_blueprint(user_bp,   url_prefix="/api/users")
 
+    # ── Serve the HTML frontend ───────────────────────────────────────────
+    @app.route("/")
+    def index():
+        resp = app.make_response(render_template("index.html"))
+        # Single-file template inlined with JS — force browsers to re-fetch on
+        # every reload so a stale cached copy never shadows new frontend code.
+        resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
+        return resp
+
+    # ── Error handlers ────────────────────────────────────────────────────
     @app.errorhandler(400)
     def bad_request(e):
         return jsonify({"error": "Bad request", "detail": str(e)}), 400

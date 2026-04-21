@@ -99,7 +99,7 @@ pip install -r requirements.txt
 
 # Start the development server
 python app/app.py
-# → http://localhost:5000
+# → http://localhost:5001
 ```
 
 ---
