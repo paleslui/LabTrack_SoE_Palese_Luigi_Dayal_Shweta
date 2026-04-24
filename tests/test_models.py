@@ -42,10 +42,21 @@ def test_sample_valid_transition():
     s.update_status(SampleStatus.PROCESSING, changed_by_id=1)
     assert s.get_status() == SampleStatus.PROCESSING
 
-def test_sample_invalid_transition_raises():
+def test_sample_any_transition_allowed():
+    # All status transitions are allowed in both directions.
+    # This supports correction of mistakes (e.g. accidental Consumed/Discarded).
+    # The audit log records every change for full traceability.
     s = make_sample()
-    with pytest.raises(ValueError):
-        s.update_status(SampleStatus.STORED, changed_by_id=1)  # skips PROCESSING
+    s.update_status(SampleStatus.STORED, changed_by_id=1)      # skip Processing
+    assert s.get_status() == SampleStatus.STORED
+    s.update_status(SampleStatus.CONSUMED, changed_by_id=1)    # mark consumed
+    assert s.get_status() == SampleStatus.CONSUMED
+    s.update_status(SampleStatus.COLLECTED, changed_by_id=1)   # correct mistake — back to Collected
+    assert s.get_status() == SampleStatus.COLLECTED
+    s.update_status(SampleStatus.DISCARDED, changed_by_id=1)   # discard
+    assert s.get_status() == SampleStatus.DISCARDED
+    s.update_status(SampleStatus.PROCESSING, changed_by_id=1)  # correct — back to Processing
+    assert s.get_status() == SampleStatus.PROCESSING
 
 def test_sample_audit_log_appended():
     s = make_sample()

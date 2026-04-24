@@ -3,8 +3,9 @@ app/routes/user_routes.py — Admin-only user management, wired to UserRepositor
 """
 
 import bcrypt
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, session, g, Response
 from .auth_routes import login_required, require_role
+from database.db import log_activity
 
 user_bp = Blueprint("users", __name__)
 
@@ -54,6 +55,8 @@ def create_user():
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
 
+    log_activity(g.current_user_id, session.get("username", "?"),
+                 "create_user", data["username"], ip=request.remote_addr)
     return jsonify(_user_to_dict(user)), 201
 
 
@@ -108,4 +111,58 @@ def deactivate_user(user_id: int):
         return jsonify({"error": "User not found"}), 404
     user.set_active(False)
     repo.update(user)
+    log_activity(g.current_user_id, session.get("username", "?"),
+                 "deactivate_user", user.get_username(), ip=request.remote_addr)
     return jsonify({"message": f"User {user.get_username()!r} deactivated"}), 200
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ACTIVITY LOG — admin-only system-level audit trail
+# ══════════════════════════════════════════════════════════════════════════════
+
+@user_bp.get("/activity-log")
+@login_required
+@require_role("admin")
+def get_activity_log():
+    """
+    GET /api/users/activity-log
+    Query params: limit (default 100, max 500), username, action.
+    """
+    from database.models import ActivityLogModel
+    from database.db import db_session
+    limit = min(500, max(1, int(request.args.get("limit", 100))))
+    with db_session() as s:
+        q = s.query(ActivityLogModel).order_by(ActivityLogModel.timestamp.desc())
+        if request.args.get("username"):
+            q = q.filter(ActivityLogModel.username == request.args["username"])
+        if request.args.get("action"):
+            q = q.filter(ActivityLogModel.action == request.args["action"])
+        rows = q.limit(limit).all()
+        return jsonify({"logs": [{
+            "log_id":    r.log_id,
+            "username":  r.username,
+            "action":    r.action,
+            "detail":    r.detail,
+            "ip":        r.ip_address,
+            "timestamp": str(r.timestamp)[:19] if r.timestamp else None,
+        } for r in rows]}), 200
+
+
+@user_bp.get("/activity-log/export")
+@login_required
+@require_role("admin")
+def export_activity_log():
+    """GET /api/users/activity-log/export — full activity log as CSV."""
+    import io, csv as csvmod
+    from database.models import ActivityLogModel
+    from database.db import db_session
+    output = io.StringIO()
+    w = csvmod.writer(output)
+    w.writerow(["timestamp", "username", "action", "detail", "ip"])
+    with db_session() as s:
+        rows = s.query(ActivityLogModel).order_by(ActivityLogModel.timestamp.desc()).all()
+        for r in rows:
+            w.writerow([str(r.timestamp)[:19] if r.timestamp else "",
+                        r.username or "", r.action, r.detail or "", r.ip_address or ""])
+    return Response(output.getvalue(), mimetype="text/csv",
+                    headers={"Content-Disposition": 'attachment; filename="activity_log.csv"'})

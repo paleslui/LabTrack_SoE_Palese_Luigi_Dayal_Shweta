@@ -75,6 +75,14 @@ class UserRepository:
             orm.is_active = user.is_active()
             orm.role      = user.get_role()
 
+    def update_password(self, user_id: int, new_password_hash: str) -> None:
+        """Replace the stored bcrypt hash for a user."""
+        with db_session() as session:
+            orm = session.query(UserModel).filter_by(user_id=user_id).first()
+            if orm is None:
+                raise KeyError(f"User {user_id} not found.")
+            orm.password_hash = new_password_hash
+
     def count(self) -> int:
         with db_session() as session:
             return session.query(UserModel).count()

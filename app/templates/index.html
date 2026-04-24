@@ -34,6 +34,7 @@ textarea{height:72px;resize:vertical}
 .btn:hover{opacity:.88} .btn:disabled{opacity:.5;cursor:default}
 .btn-primary{background:#2E75B6;color:#fff}
 .btn-secondary{background:#EEE;color:#333;border:1px solid #CCC}
+.btn-danger{background:#C0392B;color:#fff}
 .btn-sm{padding:5px 12px;font-size:12px}
 .btn-full{width:100%;margin-top:20px}
 .card{background:#fff;border-radius:8px;border:1px solid #DDD;padding:20px;margin-bottom:16px}
@@ -116,31 +117,55 @@ tr:last-child td{border-bottom:none} tr:hover td{background:#FAFCFF}
             onmousedown="tapTab('samples', event)"
             onpointerdown="tapTab('samples', event)"
             ontouchend="tapTab('samples', event)">Samples</button>
+    <button type="button" class="tab" id="tab-projects" onclick="openProjects()">Projects</button>
     <button type="button" class="tab" id="tab-admin"
             onclick="switchTab('admin')"
             onmousedown="tapTab('admin', event)"
             onpointerdown="tapTab('admin', event)"
             ontouchend="tapTab('admin', event)" hidden>Admin</button>
     <div class="right">
-      <span class="who" id="nav-user"></span>
+      <span class="who" id="nav-user" onclick="openProfile()" style="cursor:pointer;text-decoration:underline;text-underline-offset:3px" title="Edit my profile"></span>
       <button type="button" class="tab" id="tab-logout" onclick="doLogout()">Logout</button>
     </div>
   </nav>
 
   <!-- DASHBOARD -->
   <div id="page-dashboard" class="page">
-    <div class="stats">
-      <div class="stat dark"><div class="lbl">Total samples</div><div class="val" id="st-total">—</div></div>
+    <div class="stats" style="grid-template-columns:repeat(5,1fr)">
+      <div class="stat dark"><div class="lbl">Total</div><div class="val" id="st-total">—</div></div>
       <div class="stat green"><div class="lbl">Collected</div><div class="val" id="st-collected">—</div></div>
       <div class="stat amber"><div class="lbl">Processing</div><div class="val" id="st-processing">—</div></div>
       <div class="stat blue"><div class="lbl">Stored</div><div class="val" id="st-stored">—</div></div>
+      <div class="stat" style="border-left:4px solid #BA7517"><div class="lbl">This month</div><div class="val" id="st-month">—</div></div>
     </div>
-    <div class="card">
-      <div class="card-title">Recent samples</div>
-      <table>
-        <thead><tr><th>Sample ID</th><th>Type</th><th>Organism</th><th>Status</th><th>Location</th><th>Registered</th></tr></thead>
-        <tbody id="dash-table"><tr><td colspan="6" class="empty"><span class="spin"></span>Loading…</td></tr></tbody>
-      </table>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px">
+      <div class="card">
+        <div class="card-title">By type</div>
+        <div id="chart-type" style="font-size:13px"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">By organism</div>
+        <div id="chart-org" style="font-size:13px"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Status breakdown</div>
+        <div id="chart-status" style="font-size:13px"></div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px">
+      <div class="card">
+        <div class="card-title">Recent samples</div>
+        <table>
+          <thead><tr><th>Sample ID</th><th>Type</th><th>Organism</th><th>Status</th><th>Location</th><th>Registered</th><th>Expiry</th></tr></thead>
+          <tbody id="dash-table"><tr><td colspan="6" class="empty"><span class="spin"></span>Loading…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title">Top contributors</div>
+        <div id="chart-users" style="font-size:13px"></div>
+      </div>
     </div>
   </div>
 
@@ -148,7 +173,10 @@ tr:last-child td{border-bottom:none} tr:hover td{background:#FAFCFF}
   <div id="page-samples" class="page">
     <div class="topbar">
       <h2 style="color:#1F3864">Sample inventory</h2>
-      <button class="btn btn-primary btn-sm" id="btn-register" onclick="openRegister()" style="display:none">+ Register sample</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-secondary btn-sm" onclick="exportCSV()">↓ Export CSV</button>
+        <button class="btn btn-primary btn-sm" id="btn-register" onclick="openRegister()" style="display:none">+ Register sample</button>
+      </div>
     </div>
     <div class="filter-bar">
       <div class="f"><label>Type</label><input id="f-type" placeholder="e.g. blood"></div>
@@ -160,22 +188,73 @@ tr:last-child td{border-bottom:none} tr:hover td{background:#FAFCFF}
         </select>
       </div>
       <div class="f"><label>Location</label><input id="f-loc" placeholder="e.g. Freezer-A1"></div>
-      <div><label>&nbsp;</label><button class="btn btn-secondary" onclick="loadSamples()">Search</button></div>
+      <div class="f"><label>Date from</label><input id="f-date-from" type="date"></div>
+      <div class="f"><label>Date to</label><input id="f-date-to" type="date"></div>
+      <div class="f" id="filter-submitted-by-wrap"><label>Submitted by</label><input id="f-submitted-by" placeholder="username"></div>
+      <div class="f"><label>Project</label>
+        <select id="f-project"><option value="">All projects</option></select>
+      </div>
+      <div class="f"><label>&nbsp;</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-top:0">
+          <input type="checkbox" id="f-reserved" style="width:auto;margin:0"> Reserved only
+        </label>
+      </div>
+      <div><label>&nbsp;</label><button class="btn btn-secondary" onclick="loadSamples()">Search</button>
+      <button class="btn btn-secondary" onclick="clearFilters()" style="margin-left:6px">Clear</button></div>
     </div>
     <div class="card" style="padding:0">
       <table>
-        <thead><tr><th>Sample ID</th><th>Type</th><th>Organism</th><th>Status</th><th>Location</th><th>Date</th><th></th></tr></thead>
-        <tbody id="sample-table"><tr><td colspan="7" class="empty"><span class="spin"></span>Loading…</td></tr></tbody>
+        <thead><tr>
+          <th><input type="checkbox" id="select-all" onclick="toggleSelectAll(this)"></th>
+          <th>Sample ID</th><th>Type</th><th>Organism</th><th>Status</th><th>Location</th><th>Date</th><th>Expiry</th><th>Qty</th><th></th>
+        </tr></thead>
+        <tbody id="sample-table"><tr><td colspan="8" class="empty"><span class="spin"></span>Loading…</td></tr></tbody>
       </table>
     </div>
+    <div id="bulk-bar" style="display:none;background:#1F3864;color:#fff;padding:10px 16px;border-radius:6px;margin-top:10px;align-items:center;gap:12px;flex-wrap:wrap">
+      <span id="bulk-count" style="font-size:13px;font-weight:bold"></span>
+      <select id="bulk-status-select" style="padding:5px 8px;border-radius:4px;border:none;font-size:13px">
+        <option value="">Change status to…</option>
+        <option>Collected</option><option>Processing</option>
+        <option>Stored</option><option>Consumed</option><option>Discarded</option>
+      </select>
+      <button class="btn btn-secondary btn-sm" onclick="doBulkStatus()">Apply</button>
+      <button class="btn btn-secondary btn-sm" onclick="doBulkExport()">↓ Export selected</button>
+      <button class="btn btn-secondary btn-sm" onclick="doBulkLabels()">🏷 Print labels</button>
+      <button class="btn btn-danger btn-sm" id="btn-bulk-delete" style="display:none" onclick="doBulkDelete()">🗑 Delete selected</button>
+      <button class="btn btn-secondary btn-sm" onclick="clearSelection()" style="margin-left:auto">✕ Clear</button>
+    </div>
     <p id="sample-count" style="font-size:13px;color:#888;margin-top:8px"></p>
+
+    <!-- CSV import — visible to researcher and admin only, controlled by show() -->
+    <div id="csv-import-card" class="card" style="margin-top:16px;display:none">
+      <div class="card-title">Bulk CSV import</div>
+      <p style="font-size:13px;color:#666;margin-bottom:12px">
+        Required columns: <code>sample_type, source_organism, collection_date (YYYY-MM-DD), storage_location</code> — optional: <code>notes</code>
+      </p>
+      <div id="csv-drop-zone" style="border:2px dashed #CCCCCC;border-radius:8px;padding:28px;text-align:center;cursor:pointer;transition:border-color .2s"
+           onclick="$('csv-file-input').click()"
+           ondragover="event.preventDefault();this.style.borderColor='#2E75B6'"
+           ondragleave="this.style.borderColor='#CCCCCC'"
+           ondrop="handleCsvDrop(event)">
+        <p style="color:#888;font-size:14px">Drop a CSV file here or click to choose</p>
+        <input type="file" id="csv-file-input" accept=".csv" style="display:none" onchange="handleCsvFile(this.files[0])">
+      </div>
+      <div id="csv-result" class="alert" style="margin-top:12px"></div>
+    </div>
   </div>
 
   <!-- SAMPLE DETAIL -->
   <div id="page-detail" class="page">
     <div class="topbar">
       <h2 id="detail-title" style="color:#1F3864">Sample detail</h2>
-      <button class="btn btn-secondary btn-sm" onclick="show('samples')">← Back</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary btn-sm" id="btn-print-label" onclick="printLabel()">🏷 Print label</button>
+        <button class="btn btn-secondary btn-sm" onclick="exportSampleAudit()">↓ Audit log</button>
+        <button class="btn btn-primary btn-sm" id="btn-edit-sample" style="display:none" onclick="openEditSample()">✏ Edit</button>
+        <button class="btn btn-danger btn-sm" id="btn-delete-sample" style="display:none" onclick="doDeleteSample()">🗑 Delete</button>
+        <button class="btn btn-secondary btn-sm" onclick="show('samples')">← Back</button>
+      </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 290px;gap:16px">
       <div class="card">
@@ -198,13 +277,51 @@ tr:last-child td{border-bottom:none} tr:hover td{background:#FAFCFF}
       <div class="audit-row head"><span>Timestamp</span><span>From</span><span>To</span><span>Changed by</span></div>
       <div id="audit-log"><div class="empty">No status changes recorded yet.</div></div>
     </div>
+
+    <div id="parent-section" class="card" style="margin-top:0;display:none">
+      <div class="card-title">Derived from</div>
+      <p style="font-size:14px">This sample was extracted from
+        <span id="parent-link" style="color:#2E75B6;cursor:pointer;font-family:monospace;font-weight:bold"></span>
+        — click to view parent sample.
+      </p>
+    </div>
+
+    <div id="children-section" class="card" style="margin-top:0;display:none">
+      <div class="card-title">Derived samples</div>
+      <p style="font-size:13px;color:#888;margin-bottom:8px">The following samples were extracted from this one:</p>
+      <div id="children-list"></div>
+    </div>
+
+    <div id="reservation-section" class="card" style="margin-top:0">
+      <div class="card-title">Reservation</div>
+      <div id="reservation-body"><span style="color:#AAA;font-size:13px">Loading…</span></div>
+    </div>
+
+    <div id="attachments-section" class="card" style="margin-top:0">
+      <div class="card-title">Attachments</div>
+      <div id="attachments-list"><span style="color:#AAA;font-size:13px">No attachments.</span></div>
+      <div id="attach-drop-zone" style="display:none;border:2px dashed #CCC;border-radius:6px;padding:16px;text-align:center;cursor:pointer;margin-top:12px"
+           onclick="$('attach-file-input').click()"
+           ondragover="event.preventDefault();this.style.borderColor='#2E75B6'"
+           ondragleave="this.style.borderColor='#CCC'"
+           ondrop="handleAttachDrop(event)">
+        <p style="color:#888;font-size:13px">Drop file here or click to upload (max 5MB)</p>
+        <input type="file" id="attach-file-input" style="display:none"
+               accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx,.xlsx,.csv,.txt"
+               onchange="handleAttachFile(this.files[0])">
+      </div>
+      <div id="attach-msg" class="alert" style="margin-top:8px"></div>
+    </div>
   </div>
 
   <!-- ADMIN -->
   <div id="page-admin" class="page">
     <div class="topbar">
       <h2 style="color:#1F3864">User management</h2>
-      <button class="btn btn-primary btn-sm" onclick="openCreateUser()">+ New user</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary btn-sm" onclick="exportFullAudit()">↓ Full audit log</button>
+        <button class="btn btn-primary btn-sm" onclick="openCreateUser()">+ New user</button>
+      </div>
     </div>
     <div id="admin-msg" class="alert"></div>
     <div class="card" style="padding:0">
@@ -215,23 +332,119 @@ tr:last-child td{border-bottom:none} tr:hover td{background:#FAFCFF}
     </div>
 
     <div class="card" style="margin-top:16px">
-      <div class="card-title">Bulk CSV import</div>
-      <p style="font-size:13px;color:#666;margin-bottom:12px">
-        Required columns: <code>sample_type, source_organism, collection_date (YYYY-MM-DD), storage_location</code> — optional: <code>notes</code>
-      </p>
-      <div id="csv-drop-zone" style="border:2px dashed #CCCCCC;border-radius:8px;padding:28px;text-align:center;cursor:pointer;transition:border-color .2s"
-           onclick="$('csv-file-input').click()"
-           ondragover="event.preventDefault();this.style.borderColor='#2E75B6'"
-           ondragleave="this.style.borderColor='#CCCCCC'"
-           ondrop="handleCsvDrop(event)">
-        <p style="color:#888;font-size:14px">Drop a CSV file here or click to choose</p>
-        <input type="file" id="csv-file-input" accept=".csv" style="display:none" onchange="handleCsvFile(this.files[0])">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span>Activity log</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input id="act-filter-user" placeholder="filter by username" style="padding:4px 8px;font-size:12px;width:160px">
+          <input id="act-filter-action" placeholder="filter by action" style="padding:4px 8px;font-size:12px;width:140px">
+          <button class="btn btn-secondary btn-sm" onclick="loadActivity()">Search</button>
+          <button class="btn btn-secondary btn-sm" onclick="exportActivityLog()">↓ Export</button>
+        </div>
       </div>
-      <div id="csv-result" class="alert" style="margin-top:12px"></div>
+      <div style="max-height:360px;overflow-y:auto">
+        <table>
+          <thead><tr><th>Timestamp</th><th>User</th><th>Action</th><th>Detail</th><th>IP</th></tr></thead>
+          <tbody id="activity-table"><tr><td colspan="5" class="empty">Click Search to load.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- EDIT SAMPLE MODAL -->
+<div class="modal-bg" id="edit-sample-modal">
+  <div class="modal" style="width:580px">
+    <h3>Edit sample — <span id="es-id" style="font-family:monospace;color:#2E75B6"></span></h3>
+    <div id="es-err" class="alert alert-err"></div>
+    <div id="es-ok"  class="alert alert-ok"></div>
+    <div class="row2">
+      <div><label>Sample type *</label><input id="es-type" placeholder="blood, DNA, tissue…"></div>
+      <div><label>Source organism *</label><input id="es-org" placeholder="Homo sapiens"></div>
+    </div>
+    <div class="row2" style="margin-top:10px">
+      <div><label>Collection date *</label><input id="es-date" type="date"></div>
+      <div><label>Storage location *</label><input id="es-loc" placeholder="e.g. Freezer-A1"></div>
+    </div>
+    <details style="margin-top:10px">
+      <summary style="font-size:12px;color:#2E75B6;cursor:pointer">📍 Structured location</summary>
+      <div class="row2" style="margin-top:8px">
+        <div><label>Building</label><input id="es-loc-building" placeholder="e.g. Building A"></div>
+        <div><label>Room</label><input id="es-loc-room" placeholder="e.g. Room 214"></div>
+      </div>
+      <div class="row2" style="margin-top:8px">
+        <div><label>Equipment</label><input id="es-loc-equipment" placeholder="e.g. Freezer-A"></div>
+        <div><label>Position</label><input id="es-loc-position" placeholder="e.g. Shelf 2, Box 3, A1"></div>
+      </div>
+    </details>
+    <div class="row2" style="margin-top:10px">
+      <div><label>Expiry date</label><input id="es-expiry" type="date"></div>
+      <div><label>Quantity</label>
+        <div style="display:flex;gap:6px">
+          <input id="es-quantity" type="number" step="0.01" min="0" placeholder="e.g. 5.0" style="flex:1">
+          <select id="es-quantity-unit" style="width:80px">
+            <option value="">unit</option>
+            <option>ml</option><option>ul</option><option>mg</option>
+            <option>ug</option><option>ng</option><option>units</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <label style="margin-top:10px">Notes</label>
+    <textarea id="es-notes" style="height:60px"></textarea>
+    <label style="margin-top:10px">Derived from sample ID</label>
+    <input id="es-parent" placeholder="e.g. LT-2025-0001 (leave blank if original)">
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeEditSample()">Cancel</button>
+      <button class="btn btn-primary" id="es-btn" onclick="doEditSample()">Save changes</button>
     </div>
   </div>
 </div>
 
+<!-- PROFILE MODAL -->
+<div class="modal-bg" id="profile-modal">
+  <div class="modal" style="width:420px">
+    <h3>My profile</h3>
+    <div id="profile-err" class="alert alert-err"></div>
+    <div id="profile-ok"  class="alert alert-ok"></div>
+    <label>Username</label>
+    <input id="p-username" disabled style="background:#F5F5F5;color:#888">
+    <label>New email (leave blank to keep current)</label>
+    <input id="p-email" type="email" placeholder="new@email.com">
+    <label>New password (leave blank to keep current)</label>
+    <input id="p-newpw" type="password" placeholder="min 8 characters">
+    <label>Current password <span style="color:#C00">*</span></label>
+    <input id="p-curpw" type="password" placeholder="required to save any change">
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeProfile()">Cancel</button>
+      <button class="btn btn-primary" onclick="doUpdateProfile()">Save changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROJECTS MODAL -->
+<div class="modal-bg" id="projects-modal">
+  <div class="modal" style="width:640px;max-width:95vw">
+    <h3>Projects</h3>
+    <div id="projects-err" class="alert alert-err"></div>
+    <div id="projects-ok"  class="alert alert-ok"></div>
+    <div id="projects-list" style="max-height:320px;overflow-y:auto;margin-bottom:16px">
+      <div class="empty">Loading…</div>
+    </div>
+    <div id="new-project-form" style="border-top:1px solid #EEE;padding-top:14px;display:none">
+      <div class="card-title" style="margin-bottom:10px">New project</div>
+      <div class="row2">
+        <div><label>Name *</label><input id="np-name" placeholder="e.g. COVID-19 cohort A"></div>
+        <div><label>Description</label><input id="np-desc" placeholder="Short description"></div>
+      </div>
+      <button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="doCreateProject()">Create project</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeProjects()">Close</button>
+    </div>
+  </div>
+</div>
 
 <!-- REGISTER MODAL -->
 <div class="modal-bg" id="register-modal">
@@ -245,10 +458,45 @@ tr:last-child td{border-bottom:none} tr:hover td{background:#FAFCFF}
     </div>
     <div class="row2">
       <div><label>Collection date *</label><input id="r-date" type="date"></div>
-      <div><label>Storage location *</label><input id="r-loc" placeholder="Freezer-A1"></div>
+      <div>
+        <label>Storage location *</label>
+        <input id="r-loc" placeholder="e.g. Freezer-A1 (or use structured fields below)">
+      </div>
     </div>
-    <label>Notes</label>
+    <details style="margin-top:8px">
+      <summary style="font-size:12px;color:#2E75B6;cursor:pointer">+ Add structured location (optional)</summary>
+      <div class="row2" style="margin-top:8px">
+        <div><label>Building</label><input id="r-loc-building" placeholder="e.g. Building A"></div>
+        <div><label>Room</label><input id="r-loc-room" placeholder="e.g. Room 214"></div>
+      </div>
+      <div class="row2" style="margin-top:8px">
+        <div><label>Equipment</label><input id="r-loc-equipment" placeholder="e.g. Freezer-A"></div>
+        <div><label>Position</label><input id="r-loc-position" placeholder="e.g. Shelf 2, Box 3, A1"></div>
+      </div>
+    </details>
+    <div class="row2" style="margin-top:14px">
+      <div>
+        <label>Expiry date <span style="font-size:11px;color:#888">(optional)</span></label>
+        <input id="r-expiry" type="date">
+      </div>
+      <div>
+        <label>Quantity <span style="font-size:11px;color:#888">(optional)</span></label>
+        <div style="display:flex;gap:6px">
+          <input id="r-quantity" type="number" step="0.01" min="0" placeholder="e.g. 5.0" style="flex:1">
+          <select id="r-quantity-unit" style="width:80px">
+            <option value="">unit</option>
+            <option>ml</option><option>ul</option><option>mg</option>
+            <option>ug</option><option>ng</option><option>units</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <label style="margin-top:14px">Project <span style="font-size:11px;color:#888">(optional)</span></label>
+    <select id="r-project"><option value="">— No project —</option></select>
+    <label style="margin-top:14px">Notes</label>
     <textarea id="r-notes" placeholder="Optional…"></textarea>
+    <label style="margin-top:14px">Derived from sample <span style="font-size:11px;color:#888">(optional — if this sample was extracted from another)</span></label>
+    <input id="r-parent" placeholder="e.g. LT-2025-0001 (leave blank if original)">
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeRegister()">Cancel</button>
       <button class="btn btn-primary" id="reg-btn" onclick="doRegister()">Register sample</button>
@@ -319,6 +567,16 @@ let detailId = null;
 
 const badge = s => `<span class="badge b-${s}">${s}</span>`;
 
+function expiryBadge(dateStr) {
+  if (!dateStr) return '';
+  const expiry = new Date(dateStr);
+  const today  = new Date();
+  const days   = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
+  if (days < 0)   return `<span style="background:#F8D7DA;color:#842029;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:bold">⚠ Expired ${Math.abs(days)}d ago</span>`;
+  if (days <= 30) return `<span style="background:#FFF3CD;color:#856404;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:bold">⚠ Expires in ${days}d</span>`;
+  return `<span style="background:#D1E7DD;color:#0F5132;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:bold">${dateStr}</span>`;
+}
+
 async function api(method, path, body) {
   const opts = { method, credentials: 'include', headers: {} };
   if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
@@ -344,6 +602,7 @@ async function doLogin() {
   $('app').style.display = 'block';
   $('nav-user').textContent = `${data.username} (${data.role})`;
   if (data.role === 'admin') $('tab-admin').hidden = false;
+  fetchProjects();
   if (['researcher', 'admin'].includes(data.role)) $('btn-register').style.display = 'inline-block';
   switchTab('dashboard');
 }
@@ -394,6 +653,15 @@ function switchTab(name, fromTap) {
   if (page) page.classList.add('active');
   if (tab)  tab.classList.add('active');
 
+  if (name === 'samples') {
+    // Hide submitted-by filter from viewers
+    const wrap = $('filter-submitted-by-wrap');
+    if (wrap) wrap.style.display = currentUser?.role === 'viewer' ? 'none' : '';
+    // Show CSV import card only to researchers and admins
+    const csvCard = $('csv-import-card');
+    if (csvCard) csvCard.style.display = ['researcher','admin'].includes(currentUser?.role) ? 'block' : 'none';
+  }
+
   if (name === 'dashboard') loadDashboard();
   else if (name === 'samples') loadSamples();
   else if (name === 'admin') loadUsers();
@@ -405,53 +673,132 @@ function show(name) { switchTab(name); }
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
 async function loadDashboard() {
-  const { ok, data } = await api('GET', '/api/samples/?per_page=100');
+  const { ok, data } = await api('GET', '/api/samples/?per_page=500');
   if (!ok) return;
   const samples = data.samples || [];
-  const count = s => samples.filter(x => x.status === s).length;
-  $('st-total').textContent      = data.total;
-  $('st-collected').textContent  = count('Collected');
-  $('st-processing').textContent = count('Processing');
-  $('st-stored').textContent     = count('Stored');
+  const total = data.total;
+
+  const now = new Date();
+  const thisMonth = samples.filter(s => {
+    const d = new Date(s.collection_date);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  }).length;
+
+  $('st-total').textContent      = total;
+  $('st-collected').textContent  = samples.filter(s => s.status === 'Collected').length;
+  $('st-processing').textContent = samples.filter(s => s.status === 'Processing').length;
+  $('st-stored').textContent     = samples.filter(s => s.status === 'Stored').length;
+  $('st-month').textContent      = thisMonth;
+
+  function barChart(containerId, counts, colorFn) {
+    const max = Math.max(...Object.values(counts), 1);
+    $(containerId).innerHTML = Object.entries(counts)
+      .sort((a,b) => b[1]-a[1]).slice(0,6)
+      .map(([k,v]) => `
+        <div style="margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px">
+            <span style="color:#333;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${k}</span>
+            <span style="color:#888;font-weight:bold">${v}</span>
+          </div>
+          <div style="background:#EEE;border-radius:3px;height:8px">
+            <div style="background:${colorFn(k)};width:${Math.round(v/max*100)}%;height:8px;border-radius:3px;transition:width .4s"></div>
+          </div>
+        </div>`).join('');
+  }
+
+  const byType = {};
+  samples.forEach(s => byType[s.sample_type] = (byType[s.sample_type]||0)+1);
+  barChart('chart-type', byType, () => '#2E75B6');
+
+  const byOrg = {};
+  samples.forEach(s => byOrg[s.source_organism] = (byOrg[s.source_organism]||0)+1);
+  barChart('chart-org', byOrg, () => '#1D9E75');
+
+  const statusColors = {Collected:'#1D9E75',Processing:'#BA7517',Stored:'#2E75B6',Consumed:'#888',Discarded:'#C00'};
+  const byStatus = {};
+  samples.forEach(s => byStatus[s.status] = (byStatus[s.status]||0)+1);
+  barChart('chart-status', byStatus, k => statusColors[k]||'#888');
+
+  const byUser = {};
+  samples.forEach(s => {
+    const u = s.created_by_username || s.created_by_id;
+    byUser[u] = (byUser[u]||0)+1;
+  });
+  barChart('chart-users', byUser, () => '#534AB7');
+
   $('dash-table').innerHTML = samples.length === 0
-    ? '<tr><td colspan="6" class="empty">No samples yet — register one!</td></tr>'
+    ? '<tr><td colspan="6" class="empty">No samples yet.</td></tr>'
     : samples.slice(0, 10).map(s => `<tr>
         <td style="font-family:monospace;font-size:13px;cursor:pointer;color:#2E75B6" onclick="openDetail('${s.sample_id}')">${s.sample_id}</td>
         <td>${s.sample_type}</td><td>${s.source_organism}</td>
         <td>${badge(s.status)}</td><td>${s.storage_location}</td>
         <td style="color:#888;font-size:12px">${s.collection_date.split('T')[0]}</td>
+        <td>${s.expiry_date ? expiryBadge(s.expiry_date) : '<span style="color:#CCC">—</span>'}</td>
       </tr>`).join('');
 }
 
 // ── SAMPLES ───────────────────────────────────────────────────────────────────
 async function loadSamples() {
-  $('sample-table').innerHTML = '<tr><td colspan="7" class="empty"><span class="spin"></span>Loading…</td></tr>';
+  $('sample-table').innerHTML = '<tr><td colspan="8" class="empty"><span class="spin"></span>Loading…</td></tr>';
+  if (projectsCache.length === 0) fetchProjects();
   const type   = $('f-type').value.trim();
   const status = $('f-status').value;
   const loc    = $('f-loc').value.trim();
+  const dateFrom = $('f-date-from').value;
+  const dateTo   = $('f-date-to').value;
+  const submittedBy = $('f-submitted-by') ? $('f-submitted-by').value.trim() : '';
   let qs = '?per_page=100';
-  if (type)   qs += `&type=${encodeURIComponent(type)}`;
-  if (status) qs += `&status=${encodeURIComponent(status)}`;
-  if (loc)    qs += `&location=${encodeURIComponent(loc)}`;
+  if (type)        qs += `&type=${encodeURIComponent(type)}`;
+  if (status)      qs += `&status=${encodeURIComponent(status)}`;
+  if (loc)         qs += `&location=${encodeURIComponent(loc)}`;
+  if (dateFrom && dateTo) qs += `&date_from=${dateFrom}&date_to=${dateTo}`;
+  if (submittedBy) qs += `&submitted_by=${encodeURIComponent(submittedBy)}`;
+  const projectId = $('f-project') ? $('f-project').value : '';
+  if (projectId)   qs += `&project_id=${projectId}`;
+  if ($('f-reserved') && $('f-reserved').checked) qs += `&reserved_only=1`;
   const { ok, data } = await api('GET', '/api/samples/' + qs);
-  if (!ok) { $('sample-table').innerHTML = '<tr><td colspan="7" class="empty">Error loading samples.</td></tr>'; return; }
+  if (!ok) { $('sample-table').innerHTML = '<tr><td colspan="8" class="empty">Error loading samples.</td></tr>'; return; }
   const samples = data.samples || [];
   $('sample-count').textContent = `Showing ${samples.length} of ${data.total} samples`;
   $('sample-table').innerHTML = samples.length === 0
-    ? '<tr><td colspan="7" class="empty">No samples match the filter.</td></tr>'
-    : samples.map(s => `<tr>
-        <td style="font-family:monospace;font-size:13px">${s.sample_id}</td>
+    ? '<tr><td colspan="8" class="empty">No samples match the filter.</td></tr>'
+    : samples.map(s => {
+      const expiry = s.expiry_date ? expiryBadge(s.expiry_date) : '<span style="color:#CCC">—</span>';
+      const qty = s.quantity != null
+        ? `<span style="font-size:12px">${s.quantity}${s.quantity_unit ? ' ' + s.quantity_unit : ''}</span>`
+        : '<span style="color:#CCC">—</span>';
+      const reservedTag = s.reserved_until && new Date(s.reserved_until) > new Date()
+        ? ` <span title="Reserved by ${s.reserved_by_username || ''} until ${s.reserved_until.split('T')[0]}" style="color:#BA7517;font-size:12px">🔒</span>`
+        : '';
+      return `<tr>
+        <td><input type="checkbox" class="row-check" value="${s.sample_id}" onchange="updateBulkBar()"></td>
+        <td style="font-family:monospace;font-size:13px">${s.sample_id}${reservedTag}</td>
         <td>${s.sample_type}</td><td>${s.source_organism}</td>
         <td>${badge(s.status)}</td><td>${s.storage_location}</td>
         <td>${s.collection_date.split('T')[0]}</td>
-        <td><button class="btn btn-secondary btn-sm" onclick="openDetail('${s.sample_id}')">View</button></td>
-      </tr>`).join('');
+        <td>${expiry}</td><td>${qty}</td>
+        <td style="display:flex;gap:4px">
+          <button class="btn btn-secondary btn-sm" onclick="openDetail('${s.sample_id}')">View</button>
+          ${['researcher','technician','admin'].includes(currentUser?.role)
+            ? `<button class="btn btn-danger btn-sm" onclick="deleteFromList('${s.sample_id}')">🗑</button>`
+            : ''}
+        </td>
+      </tr>`;
+    }).join('');
+  clearSelection();
 }
 
 // ── REGISTER ──────────────────────────────────────────────────────────────────
 function openRegister() {
   $('r-type').value = $('r-org').value = $('r-loc').value = $('r-notes').value = '';
+  $('r-expiry').value = $('r-quantity').value = '';
+  $('r-quantity-unit').value = '';
+  $('r-loc-building').value = $('r-loc-room').value = '';
+  $('r-loc-equipment').value = $('r-loc-position').value = '';
+  $('r-parent').value = '';
+  if ($('r-project')) $('r-project').value = '';
   $('r-date').value = new Date().toISOString().split('T')[0];
+  fetchProjects();
   hideAlert('reg-err'); hideAlert('reg-ok');
   $('register-modal').classList.add('open');
 }
@@ -462,10 +809,22 @@ async function doRegister() {
   const date = $('r-date').value, loc = $('r-loc').value.trim();
   if (!type || !org || !date || !loc) { showAlert('reg-err', 'All fields marked * are required'); return; }
   $('reg-btn').disabled = true;
-  const { ok, data } = await api('POST', '/api/samples/', {
+  const body = {
     sample_type: type, source_organism: org,
     collection_date: date, storage_location: loc, notes: $('r-notes').value
-  });
+  };
+  if ($('r-expiry').value)    body.expiry_date    = $('r-expiry').value;
+  if ($('r-quantity').value)  body.quantity       = parseFloat($('r-quantity').value);
+  if ($('r-quantity-unit').value && $('r-quantity-unit').value !== 'unit') {
+    body.quantity_unit = $('r-quantity-unit').value;
+  }
+  if ($('r-loc-building').value)  body.location_building  = $('r-loc-building').value;
+  if ($('r-loc-room').value)      body.location_room      = $('r-loc-room').value;
+  if ($('r-loc-equipment').value) body.location_equipment = $('r-loc-equipment').value;
+  if ($('r-loc-position').value)  body.location_position  = $('r-loc-position').value;
+  if ($('r-parent').value)        body.parent_sample_id   = $('r-parent').value.trim();
+  if ($('r-project').value)       body.project_id         = parseInt($('r-project').value, 10);
+  const { ok, data } = await api('POST', '/api/samples/', body);
   $('reg-btn').disabled = false;
   if (!ok) { showAlert('reg-err', data.error || 'Registration failed'); return; }
   hideAlert('reg-err');
@@ -485,23 +844,47 @@ async function openDetail(id) {
   if (!ok) { $('detail-info').innerHTML = '<span style="color:#C00">Sample not found.</span>'; return; }
 
   $('detail-title').textContent = `Sample — ${data.sample_id}`;
+  window._currentSample = data;  // store for edit modal pre-fill
   $('detail-info').innerHTML = [
     ['Sample ID',    `<span style="font-family:monospace">${data.sample_id}</span>`],
     ['Type',          data.sample_type],
     ['Organism',      data.source_organism],
     ['Collection',    data.collection_date.split('T')[0]],
-    ['Location',      data.storage_location],
+    ['Location', (() => {
+      const parts = [data.location_building, data.location_room,
+                     data.location_equipment, data.location_position].filter(Boolean);
+      const structured = parts.join(' › ');
+      return structured
+        ? `${structured} <span style="color:#AAA;font-size:11px">(${data.storage_location})</span>`
+        : data.storage_location;
+    })()],
     ['Registered by', data.created_by_username || data.created_by_id],
-    ['Notes',         data.notes || '<span style="color:#BBB">—</span>'],
+    ['Expiry date', data.expiry_date
+      ? `<span id="expiry-display">${expiryBadge(data.expiry_date)} ${data.expiry_date}</span>`
+      : '<span style="color:#BBB">Not set</span>'],
+    ['Quantity', data.quantity != null
+      ? `${data.quantity}${data.quantity_unit ? ' ' + data.quantity_unit : ''}`
+      : '<span style="color:#BBB">Not recorded</span>'],
+    ['Notes', `<span id="notes-display">${data.notes || '<span style="color:#BBB">—</span>'}</span>
+      ${['researcher','technician','admin'].includes(currentUser?.role)
+        ? ` <button class="btn btn-secondary btn-sm" style="margin-left:8px;font-size:11px" onclick="editNotes('${data.sample_id}','${(data.notes||'').replace(/'/g,"\\'")}')">Edit</button>`
+        : ''}`],
   ].map(([k,v]) => `<div class="key">${k}</div><div class="val">${v}</div>`).join('');
 
   $('current-badge').innerHTML = badge(data.status);
 
-  const TRANSITIONS = {
-    Collected:['Processing'], Processing:['Stored'],
-    Stored:['Consumed','Discarded'], Consumed:[], Discarded:[]
-  };
-  const nexts = TRANSITIONS[data.status] || [];
+  // All statuses are fully reversible — any status can move to any other.
+  // Mistakes (e.g. accidental Consumed/Discarded) can always be corrected.
+  // Every change is recorded in the audit log for full traceability.
+  const ALL_STATUSES = ['Collected','Processing','Stored','Consumed','Discarded'];
+  const nexts = ALL_STATUSES.filter(s => s !== data.status);
+  // Show edit + delete buttons for researcher, technician, admin
+  const canEdit = ['researcher','technician','admin'].includes(currentUser?.role);
+  const editBtn2 = $('btn-edit-sample');
+  if (editBtn2) editBtn2.style.display = canEdit ? 'inline-block' : 'none';
+  const delBtn = $('btn-delete-sample');
+  if (delBtn) delBtn.style.display = canEdit ? 'inline-block' : 'none';
+
   const canUpdate = ['researcher','technician','admin'].includes(currentUser?.role);
   if (canUpdate && nexts.length > 0) {
     $('update-controls').style.display = 'block';
@@ -521,6 +904,29 @@ async function openDetail(id) {
         <span>${badge(e.new_status)}</span>
         <span style="color:#555">${e.changed_by_username || e.changed_by_id}</span>
       </div>`).join('');
+
+  if (data.parent_sample_id) {
+    $('parent-section').style.display = 'block';
+    $('parent-link').textContent = data.parent_sample_id;
+    $('parent-link').onclick = () => openDetail(data.parent_sample_id);
+  } else {
+    $('parent-section').style.display = 'none';
+  }
+
+  api('GET', `/api/samples/${id}/children`).then(({ok, data: cd}) => {
+    if (ok && cd.children && cd.children.length > 0) {
+      $('children-section').style.display = 'block';
+      $('children-list').innerHTML = cd.children.map(c =>
+        `<span class="badge b-${c.status}" style="cursor:pointer;margin:2px"
+         onclick="openDetail('${c.sample_id}')">${c.sample_id} (${c.sample_type})</span>`
+      ).join('');
+    } else {
+      $('children-section').style.display = 'none';
+    }
+  });
+
+  renderReservation(data);
+  refreshAttachments();
 }
 
 async function doUpdateStatus() {
@@ -565,9 +971,11 @@ async function handleCsvFile(file) {
     if (!resp.ok) {
       showAlertEl('csv-result', 'alert-err', data.error || 'Import failed.');
     } else {
-      const msg = `✓ Imported ${data.imported} sample(s).` +
-        (data.errors.length ? `  ${data.errors.length} row(s) skipped: ${data.errors.slice(0,3).join('; ')}` : '');
-      showAlertEl('csv-result', data.errors.length ? 'alert-ok' : 'alert-ok', msg);
+      let msg = `✓ Imported ${data.imported} sample(s).`;
+      if (data.duplicates > 0) msg += ` ${data.duplicates} duplicate(s) skipped.`;
+      if (data.errors && data.errors.length) msg += ` ${data.errors.length} error(s): ${data.errors.slice(0,3).join('; ')}`;
+      const cls = data.imported > 0 ? 'alert-ok' : 'alert-err';
+      showAlertEl('csv-result', cls, msg);
       loadDashboard();
     }
   } catch(e) {
@@ -683,6 +1091,506 @@ async function doToggleActive(userId) {
     showAlertEl('admin-msg', 'alert-ok', `✓ User '${u.username}' reactivated.`);
   }
   loadUsers();
+}
+
+// ── EXPORT / FILTER HELPERS ───────────────────────────────────────────────────
+function exportCSV() {
+  const type   = $('f-type').value.trim();
+  const status = $('f-status').value;
+  const loc    = $('f-loc').value.trim();
+  let qs = '?per_page=1000';
+  if (type)   qs += `&type=${encodeURIComponent(type)}`;
+  if (status) qs += `&status=${encodeURIComponent(status)}`;
+  if (loc)    qs += `&location=${encodeURIComponent(loc)}`;
+  const a = document.createElement('a');
+  a.href = '/api/samples/export' + qs;
+  a.download = 'labtrack_export.csv';
+  a.click();
+}
+
+function clearFilters() {
+  $('f-type').value = '';
+  $('f-status').value = '';
+  $('f-loc').value = '';
+  $('f-date-from').value = '';
+  $('f-date-to').value = '';
+  if ($('f-submitted-by')) $('f-submitted-by').value = '';
+  if ($('f-project')) $('f-project').value = '';
+  if ($('f-reserved')) $('f-reserved').checked = false;
+  loadSamples();
+}
+
+// ── BULK SELECTION ────────────────────────────────────────────────────────────
+function getSelectedIds() {
+  return [...document.querySelectorAll('.row-check:checked')].map(cb => cb.value);
+}
+
+function toggleSelectAll(cb) {
+  document.querySelectorAll('.row-check').forEach(c => c.checked = cb.checked);
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  const ids = getSelectedIds();
+  const bar = $('bulk-bar');
+  if (ids.length === 0) {
+    bar.style.display = 'none';
+  } else {
+    bar.style.display = 'flex';
+    $('bulk-count').textContent = `${ids.length} sample${ids.length > 1 ? 's' : ''} selected`;
+    const delBtn = $('btn-bulk-delete');
+    if (delBtn) delBtn.style.display = ['researcher','technician','admin'].includes(currentUser?.role) ? 'inline-block' : 'none';
+  }
+  const all = document.querySelectorAll('.row-check');
+  const checked = document.querySelectorAll('.row-check:checked');
+  const sa = $('select-all');
+  if (sa) sa.indeterminate = checked.length > 0 && checked.length < all.length;
+  if (sa) sa.checked = all.length > 0 && checked.length === all.length;
+}
+
+function clearSelection() {
+  document.querySelectorAll('.row-check').forEach(c => c.checked = false);
+  const sa = $('select-all'); if (sa) sa.checked = false;
+  updateBulkBar();
+}
+
+async function doBulkStatus() {
+  const ids = getSelectedIds();
+  const status = $('bulk-status-select').value;
+  if (!status) { alert('Choose a status first.'); return; }
+  if (!confirm(`Update ${ids.length} sample(s) to "${status}"?`)) return;
+  const { ok, data } = await api('PUT', '/api/samples/bulk-status', { sample_ids: ids, status });
+  if (ok) {
+    let msg = `✓ ${data.updated} updated.`;
+    if (data.failed.length) msg += `\n❌ ${data.failed.length} failed: ${data.failed.map(f=>f.sample_id).join(', ')}`;
+    alert(msg);
+    clearSelection();
+    loadSamples();
+    loadDashboard();
+  } else {
+    alert(data.error || 'Bulk update failed.');
+  }
+}
+
+async function doBulkExport() {
+  const ids = getSelectedIds();
+  const resp = await fetch('/api/samples/bulk-export', {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sample_ids: ids })
+  });
+  if (!resp.ok) { alert('Export failed.'); return; }
+  const blob = await resp.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'labtrack_selected.csv';
+  a.click();
+}
+
+async function deleteFromList(sampleId) {
+  if (!confirm(`Delete sample ${sampleId}?\nThis cannot be undone.`)) return;
+  const { ok, data } = await api('DELETE', `/api/samples/${sampleId}`);
+  if (ok) {
+    loadSamples();
+    loadDashboard();
+  } else {
+    alert(data.error || 'Delete failed.');
+  }
+}
+
+function openEditSample() {
+  const d = window._currentSample;
+  if (!d) return;
+  $('es-id').textContent       = d.sample_id;
+  $('es-type').value           = d.sample_type || '';
+  $('es-org').value            = d.source_organism || '';
+  $('es-date').value           = (d.collection_date || '').split('T')[0];
+  $('es-loc').value            = d.storage_location || '';
+  $('es-loc-building').value   = d.location_building || '';
+  $('es-loc-room').value       = d.location_room || '';
+  $('es-loc-equipment').value  = d.location_equipment || '';
+  $('es-loc-position').value   = d.location_position || '';
+  $('es-expiry').value         = d.expiry_date || '';
+  $('es-quantity').value       = d.quantity != null ? d.quantity : '';
+  $('es-quantity-unit').value  = d.quantity_unit || '';
+  $('es-notes').value          = d.notes || '';
+  $('es-parent').value         = d.parent_sample_id || '';
+  hideAlert('es-err'); hideAlert('es-ok');
+  $('edit-sample-modal').classList.add('open');
+}
+
+function closeEditSample() { $('edit-sample-modal').classList.remove('open'); }
+
+async function doEditSample() {
+  const type = $('es-type').value.trim();
+  const org  = $('es-org').value.trim();
+  const date = $('es-date').value;
+  const loc  = $('es-loc').value.trim();
+  if (!type || !org || !date || !loc) {
+    showAlert('es-err', 'Sample type, organism, date and location are required.');
+    return;
+  }
+  $('es-btn').disabled = true;
+  const body = {
+    sample_type: type, source_organism: org,
+    collection_date: date, storage_location: loc,
+    notes: $('es-notes').value,
+    expiry_date: $('es-expiry').value || null,
+    quantity: $('es-quantity').value !== '' ? parseFloat($('es-quantity').value) : null,
+    quantity_unit: $('es-quantity-unit').value || null,
+    location_building:  $('es-loc-building').value  || null,
+    location_room:      $('es-loc-room').value       || null,
+    location_equipment: $('es-loc-equipment').value  || null,
+    location_position:  $('es-loc-position').value   || null,
+    parent_sample_id:   $('es-parent').value.trim()  || null,
+  };
+  const { ok, data } = await api('PUT', `/api/samples/${detailId}`, body);
+  $('es-btn').disabled = false;
+  if (!ok) { showAlert('es-err', data.error || 'Update failed.'); return; }
+  showAlertEl('es-ok', 'alert-ok', '✓ Sample updated.');
+  setTimeout(() => { closeEditSample(); openDetail(detailId); }, 800);
+}
+
+async function doDeleteSample() {
+  if (!detailId) return;
+  if (!confirm(`Permanently delete sample ${detailId} and all its audit entries?\nThis cannot be undone.`)) return;
+  const { ok, data } = await api('DELETE', `/api/samples/${detailId}`);
+  if (ok) {
+    show('samples');
+    loadDashboard();
+  } else {
+    alert(data.error || 'Delete failed.');
+  }
+}
+
+async function doBulkDelete() {
+  const ids = getSelectedIds();
+  if (!confirm(`Permanently delete ${ids.length} sample(s) and all their audit entries? This cannot be undone.`)) return;
+  const { ok, data } = await api('DELETE', '/api/samples/bulk-delete', { sample_ids: ids });
+  if (ok) {
+    alert(`✓ ${data.deleted} deleted.` + (data.failed.length ? ` ${data.failed.length} failed.` : ''));
+    clearSelection();
+    loadSamples();
+    loadDashboard();
+  } else {
+    alert(data.error || 'Delete failed.');
+  }
+}
+
+// ── PROFILE ───────────────────────────────────────────────────────────────────
+async function openProfile() {
+  const { ok, data } = await api('GET', '/api/auth/me');
+  if (!ok) return;
+  $('p-username').value = data.username;
+  $('p-email').value = '';
+  $('p-newpw').value = '';
+  $('p-curpw').value = '';
+  hideAlert('profile-err'); hideAlertEl('profile-ok');
+  $('profile-modal').classList.add('open');
+}
+
+function closeProfile() { $('profile-modal').classList.remove('open'); }
+
+async function doUpdateProfile() {
+  const curpw = $('p-curpw').value;
+  if (!curpw) { showAlert('profile-err', 'Current password is required.'); return; }
+  const body = { current_password: curpw };
+  if ($('p-email').value.trim())  body.email        = $('p-email').value.trim();
+  if ($('p-newpw').value)         body.new_password = $('p-newpw').value;
+  if (Object.keys(body).length === 1) {
+    showAlert('profile-err', 'Enter a new email or new password to save.'); return;
+  }
+  const { ok, data } = await api('PUT', '/api/auth/profile', body);
+  if (!ok) { showAlert('profile-err', data.error || 'Update failed.'); return; }
+  hideAlert('profile-err');
+  showAlertEl('profile-ok', 'alert-ok', '✓ Profile updated.');
+  setTimeout(closeProfile, 1200);
+}
+
+// ── LABEL PRINTING ────────────────────────────────────────────────────────────
+function exportSampleAudit() {
+  if (!detailId) return;
+  const a = document.createElement('a');
+  a.href = `/api/samples/audit-export?sample_id=${detailId}`;
+  a.download = `audit_${detailId}.csv`;
+  a.click();
+}
+
+function exportFullAudit() {
+  const a = document.createElement('a');
+  a.href = '/api/samples/audit-export';
+  a.download = 'audit_full.csv';
+  a.click();
+}
+
+function printLabel() {
+  if (!detailId) return;
+  const a = document.createElement('a');
+  a.href = `/api/samples/${detailId}/label`;
+  a.download = `${detailId}_label.png`;
+  a.click();
+}
+
+async function doBulkLabels() {
+  const ids = getSelectedIds();
+  if (ids.length === 0) return;
+  const resp = await fetch('/api/samples/bulk-labels', {
+    method: 'POST', credentials: 'include',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({sample_ids: ids})
+  });
+  if (!resp.ok) { alert('Label generation failed.'); return; }
+  const blob = await resp.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'labtrack_labels.png';
+  a.click();
+}
+
+// ── NOTES EDIT ────────────────────────────────────────────────────────────────
+async function editNotes(sampleId, currentNotes) {
+  const newNotes = prompt('Update notes / Bemerkung:', currentNotes);
+  if (newNotes === null) return;
+  const { ok, data } = await api('PATCH', `/api/samples/${sampleId}/notes`, { notes: newNotes });
+  if (ok) {
+    openDetail(sampleId);
+  } else {
+    alert(data.error || 'Failed to update notes.');
+  }
+}
+
+// ── PROJECTS ──────────────────────────────────────────────────────────────────
+let projectsCache = [];
+
+async function fetchProjects() {
+  const { ok, data } = await api('GET', '/api/projects/');
+  if (!ok) return [];
+  projectsCache = data.projects || [];
+  // Keep dropdowns in sync
+  const rSel = $('r-project');
+  if (rSel) {
+    rSel.innerHTML = '<option value="">— No project —</option>' +
+      projectsCache.map(p => `<option value="${p.project_id}">${p.name}</option>`).join('');
+  }
+  const fSel = $('f-project');
+  if (fSel) {
+    const cur = fSel.value;
+    fSel.innerHTML = '<option value="">All projects</option>' +
+      projectsCache.map(p => `<option value="${p.project_id}">${p.name}</option>`).join('');
+    fSel.value = cur;
+  }
+  return projectsCache;
+}
+
+async function openProjects() {
+  hideAlertEl('projects-err'); hideAlertEl('projects-ok');
+  $('projects-modal').classList.add('open');
+  // Show new-project form for researcher/admin
+  const canCreate = ['researcher', 'admin'].includes(currentUser?.role);
+  $('new-project-form').style.display = canCreate ? 'block' : 'none';
+  $('np-name').value = ''; $('np-desc').value = '';
+  await renderProjectsList();
+}
+
+function closeProjects() { $('projects-modal').classList.remove('open'); }
+
+async function renderProjectsList() {
+  $('projects-list').innerHTML = '<div class="empty"><span class="spin"></span>Loading…</div>';
+  await fetchProjects();
+  if (projectsCache.length === 0) {
+    $('projects-list').innerHTML = '<div class="empty">No projects yet.</div>';
+    return;
+  }
+  const isAdmin = currentUser?.role === 'admin';
+  $('projects-list').innerHTML = projectsCache.map(p => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #F0F0F0">
+      <div>
+        <div style="font-weight:bold;color:#1F3864">${p.name}</div>
+        <div style="font-size:12px;color:#888">${p.description || '—'} · ${p.sample_count} sample${p.sample_count===1?'':'s'}</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-secondary btn-sm" onclick="filterByProject(${p.project_id})">Filter samples</button>
+        ${isAdmin ? `<button class="btn btn-danger btn-sm" onclick="doDeleteProject(${p.project_id},'${p.name.replace(/'/g,"\\'")}')">Delete</button>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+function filterByProject(pid) {
+  closeProjects();
+  switchTab('samples');
+  const sel = $('f-project');
+  if (sel) sel.value = String(pid);
+  loadSamples();
+}
+
+async function doCreateProject() {
+  const name = $('np-name').value.trim();
+  const desc = $('np-desc').value.trim();
+  if (!name) { showAlert('projects-err', 'Project name is required.'); return; }
+  const { ok, data } = await api('POST', '/api/projects/', { name, description: desc });
+  if (!ok) { showAlert('projects-err', data.error || 'Failed to create project.'); return; }
+  hideAlertEl('projects-err');
+  showAlertEl('projects-ok', 'alert-ok', `✓ Project "${data.name}" created.`);
+  $('np-name').value = ''; $('np-desc').value = '';
+  renderProjectsList();
+}
+
+async function doDeleteProject(pid, name) {
+  if (!confirm(`Delete project "${name}"? Samples will not be deleted but will be unassigned.`)) return;
+  const { ok, data } = await api('DELETE', `/api/projects/${pid}`);
+  if (!ok) { showAlert('projects-err', data.error || 'Delete failed.'); return; }
+  showAlertEl('projects-ok', 'alert-ok', `✓ Project deleted.`);
+  renderProjectsList();
+}
+
+// ── ATTACHMENTS ───────────────────────────────────────────────────────────────
+function renderAttachments(list) {
+  const canEdit = ['researcher','technician','admin'].includes(currentUser?.role);
+  $('attach-drop-zone').style.display = canEdit ? 'block' : 'none';
+  if (!list || list.length === 0) {
+    $('attachments-list').innerHTML = '<span style="color:#AAA;font-size:13px">No attachments.</span>';
+    return;
+  }
+  $('attachments-list').innerHTML = list.map(a => {
+    const sizeKB = (a.file_size / 1024).toFixed(1);
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #F3F3F3;font-size:13px">
+      <div>
+        <a href="/api/samples/${detailId}/attachments/${a.attachment_id}" download
+           style="color:#2E75B6;font-weight:500;text-decoration:none">📎 ${a.original_name}</a>
+        <span style="color:#999;font-size:11px;margin-left:8px">${sizeKB} KB · ${a.uploaded_by_username} · ${(a.uploaded_at||'').split('T')[0]}</span>
+      </div>
+      ${canEdit ? `<button class="btn btn-danger btn-sm" style="font-size:11px" onclick="deleteAttachment(${a.attachment_id})">✕</button>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function handleAttachDrop(e) {
+  e.preventDefault();
+  $('attach-drop-zone').style.borderColor = '#CCC';
+  const f = e.dataTransfer.files[0];
+  if (f) handleAttachFile(f);
+}
+
+async function handleAttachFile(file) {
+  if (!file) return;
+  const form = new FormData();
+  form.append('file', file);
+  const resp = await fetch(`/api/samples/${detailId}/attachments`, {
+    method: 'POST', credentials: 'include', body: form
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    showAlertEl('attach-msg', 'alert-err', data.error || 'Upload failed.');
+  } else {
+    showAlertEl('attach-msg', 'alert-ok', `✓ Uploaded ${data.original_name}.`);
+    refreshAttachments();
+  }
+}
+
+async function deleteAttachment(aid) {
+  if (!confirm('Delete this attachment?')) return;
+  const { ok, data } = await api('DELETE', `/api/samples/${detailId}/attachments/${aid}`);
+  if (!ok) { showAlertEl('attach-msg', 'alert-err', data.error || 'Delete failed.'); return; }
+  showAlertEl('attach-msg', 'alert-ok', '✓ Attachment deleted.');
+  refreshAttachments();
+}
+
+async function refreshAttachments() {
+  const { ok, data } = await api('GET', `/api/samples/${detailId}/attachments`);
+  if (ok) renderAttachments(data.attachments || []);
+}
+
+// ── RESERVATION ───────────────────────────────────────────────────────────────
+function renderReservation(data) {
+  const canReserve = ['researcher','technician','admin'].includes(currentUser?.role);
+  const body = $('reservation-body');
+  const now = new Date();
+  const active = data.reserved_until && new Date(data.reserved_until) > now;
+  if (active) {
+    const mine = data.reserved_by === currentUser?.user_id;
+    const isAdmin = currentUser?.role === 'admin';
+    const until = data.reserved_until.split('T')[0];
+    const note = data.reservation_note || '';
+    body.innerHTML = `
+      <p style="font-size:14px;margin-bottom:8px">
+        🔒 Reserved by <b>${data.reserved_by_username || data.reserved_by}</b> until <b>${until}</b>
+      </p>
+      ${note ? `<p style="font-size:13px;color:#666;margin-bottom:8px">Note: ${note}</p>` : ''}
+      ${(mine || isAdmin)
+        ? `<button class="btn btn-secondary btn-sm" onclick="doCancelReserve()">Cancel reservation</button>`
+        : `<p style="font-size:12px;color:#999">You cannot cancel another user's reservation.</p>`}
+    `;
+  } else if (canReserve) {
+    body.innerHTML = `
+      <div class="row2">
+        <div><label>Until *</label><input type="date" id="res-until"></div>
+        <div><label>Note <span style="font-size:11px;color:#888">(optional)</span></label><input id="res-note" placeholder="e.g. I'll process this Thu"></div>
+      </div>
+      <button class="btn btn-primary btn-sm" style="margin-top:10px" onclick="doReserve()">Reserve sample</button>
+    `;
+  } else {
+    body.innerHTML = '<span style="color:#AAA;font-size:13px">Not reserved.</span>';
+  }
+}
+
+async function doReserve() {
+  const until = $('res-until').value;
+  const note  = $('res-note').value.trim();
+  if (!until) { alert('Pick a reservation end date.'); return; }
+  const { ok, data } = await api('POST', `/api/samples/${detailId}/reserve`, { until, note });
+  if (!ok) { alert(data.error || 'Reservation failed.'); return; }
+  openDetail(detailId);
+}
+
+async function doCancelReserve() {
+  if (!confirm('Lift reservation on this sample?')) return;
+  const { ok, data } = await api('DELETE', `/api/samples/${detailId}/reserve`);
+  if (!ok) { alert(data.error || 'Cancel failed.'); return; }
+  openDetail(detailId);
+}
+
+// ── ACTIVITY LOG ──────────────────────────────────────────────────────────────
+const ACTION_COLORS = {
+  login:'#888', logout:'#888',
+  register_sample:'#1D9E75', update_status:'#2E75B6', update_sample:'#2E75B6',
+  delete_sample:'#C0392B', bulk_delete:'#C0392B',
+  import_csv:'#BA7517', reserve_sample:'#BA7517', cancel_reservation:'#888',
+  create_user:'#534AB7', deactivate_user:'#534AB7',
+  upload_attachment:'#1D9E75', delete_attachment:'#C0392B',
+  create_project:'#534AB7', delete_project:'#C0392B',
+};
+
+async function loadActivity() {
+  const user = $('act-filter-user').value.trim();
+  const action = $('act-filter-action').value.trim();
+  let qs = '?limit=200';
+  if (user)   qs += `&username=${encodeURIComponent(user)}`;
+  if (action) qs += `&action=${encodeURIComponent(action)}`;
+  $('activity-table').innerHTML = '<tr><td colspan="5" class="empty"><span class="spin"></span>Loading…</td></tr>';
+  const { ok, data } = await api('GET', '/api/users/activity-log' + qs);
+  if (!ok) { $('activity-table').innerHTML = '<tr><td colspan="5" class="empty">Access denied.</td></tr>'; return; }
+  const logs = data.logs || [];
+  if (logs.length === 0) {
+    $('activity-table').innerHTML = '<tr><td colspan="5" class="empty">No matching activity.</td></tr>';
+    return;
+  }
+  $('activity-table').innerHTML = logs.map(l => {
+    const color = ACTION_COLORS[l.action] || '#666';
+    return `<tr>
+      <td style="font-family:monospace;font-size:12px;color:#888">${l.timestamp || ''}</td>
+      <td><b>${l.username || '—'}</b></td>
+      <td><span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold;color:#fff;background:${color}">${l.action}</span></td>
+      <td style="font-size:12px">${l.detail || ''}</td>
+      <td style="font-size:11px;color:#AAA">${l.ip || ''}</td>
+    </tr>`;
+  }).join('');
+}
+
+function exportActivityLog() {
+  const a = document.createElement('a');
+  a.href = '/api/users/activity-log/export';
+  a.download = 'activity_log.csv';
+  a.click();
 }
 
 // ── ALERT HELPERS ─────────────────────────────────────────────────────────────

@@ -40,6 +40,15 @@ class SampleService:
         collection_date: datetime,
         storage_location: str,
         notes: str = "",
+        expiry_date=None,
+        quantity=None,
+        quantity_unit=None,
+        location_building=None,
+        location_room=None,
+        location_equipment=None,
+        location_position=None,
+        parent_sample_id=None,
+        project_id=None,
     ) -> Sample:
         """
         Register a new sample on behalf of a user.
@@ -74,6 +83,15 @@ class SampleService:
             storage_location=storage_location,
             created_by_id=requesting_user_id,
             notes=notes,
+            expiry_date=expiry_date,
+            quantity=quantity,
+            quantity_unit=quantity_unit,
+            location_building=location_building,
+            location_room=location_room,
+            location_equipment=location_equipment,
+            location_position=location_position,
+            parent_sample_id=parent_sample_id,
+            project_id=project_id,
         )
 
     def update_sample_status(

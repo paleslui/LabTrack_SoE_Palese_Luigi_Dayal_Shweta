@@ -179,9 +179,22 @@ class CsvImportAdapter:
             raise ValueError("'source_organism' must not be empty.")
 
         date_str = raw.get("collection_date", "").strip()
-        try:
-            collection_date = datetime.strptime(date_str, self.DATE_FORMAT)
-        except ValueError:
+        # Accept multiple date formats so exported CSVs can be re-imported directly:
+        # YYYY-MM-DD (standard), YYYY-MM-DDTHH:MM:SS (SQLAlchemy export), YYYY-MM-DD HH:MM:SS
+        _DATE_FORMATS = [
+            "%Y-%m-%d",
+            "%Y-%m-%dT%H:%M:%S",
+            "%Y-%m-%d %H:%M:%S",
+            "%Y-%m-%dT%H:%M:%S.%f",
+        ]
+        collection_date = None
+        for fmt in _DATE_FORMATS:
+            try:
+                collection_date = datetime.strptime(date_str, fmt)
+                break
+            except ValueError:
+                continue
+        if collection_date is None:
             raise ValueError(
                 f"'collection_date' must be YYYY-MM-DD, got {date_str!r}."
             )

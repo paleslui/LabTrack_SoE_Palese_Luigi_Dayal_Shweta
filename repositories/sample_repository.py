@@ -37,6 +37,18 @@ class SampleRepository:
             storage_location=orm.storage_location,
             created_by_id=orm.created_by,
             notes=orm.notes or "",
+            expiry_date=orm.expiry_date,
+            quantity=orm.quantity,
+            quantity_unit=orm.quantity_unit,
+            location_building=orm.location_building,
+            location_room=orm.location_room,
+            location_equipment=orm.location_equipment,
+            location_position=orm.location_position,
+            parent_sample_id=orm.parent_sample_id,
+            project_id=orm.project_id,
+            reserved_by=orm.reserved_by,
+            reserved_until=orm.reserved_until,
+            reservation_note=orm.reservation_note,
         )
         # Restore persisted state (bypass __init__ defaults)
         sample._status     = SampleStatus(orm.status)
@@ -59,9 +71,12 @@ class SampleRepository:
     # ── Create ─────────────────────────────────────────────────────────────
     def create(self, sample_type: str, source_organism: str,
                collection_date: datetime, storage_location: str,
-               created_by_id: int, notes: str = "") -> Sample:
+               created_by_id: int, notes: str = "",
+               expiry_date=None, quantity=None, quantity_unit=None,
+               location_building=None, location_room=None,
+               location_equipment=None, location_position=None,
+               parent_sample_id=None, project_id=None) -> Sample:
         """Generate an ID, persist the sample, return the domain object."""
-        # Generate a unique ID
         with db_session() as session:
             year = datetime.utcnow().year
             count = session.query(SampleModel).count() + 1
@@ -75,6 +90,15 @@ class SampleRepository:
                 status="Collected",
                 notes=notes,
                 created_by=created_by_id,
+                expiry_date=expiry_date,
+                quantity=quantity,
+                quantity_unit=quantity_unit,
+                location_building=location_building,
+                location_room=location_room,
+                location_equipment=location_equipment,
+                location_position=location_position,
+                parent_sample_id=parent_sample_id,
+                project_id=project_id,
             )
             session.add(orm)
 
@@ -86,6 +110,15 @@ class SampleRepository:
             storage_location=storage_location,
             created_by_id=created_by_id,
             notes=notes,
+            expiry_date=expiry_date,
+            quantity=quantity,
+            quantity_unit=quantity_unit,
+            location_building=location_building,
+            location_room=location_room,
+            location_equipment=location_equipment,
+            location_position=location_position,
+            parent_sample_id=parent_sample_id,
+            project_id=project_id,
         )
 
     def add(self, sample: Sample) -> None:
@@ -159,10 +192,25 @@ class SampleRepository:
             if orm is None:
                 raise KeyError(f"Sample {sample.get_sample_id()!r} not found.")
 
-            orm.status           = sample.get_status().value
-            orm.storage_location = sample.get_storage_location()
-            orm.notes            = sample.get_notes()
-            orm.updated_at       = sample.get_updated_at()
+            orm.sample_type        = sample.get_sample_type()
+            orm.source_organism    = sample.get_source_organism()
+            orm.collection_date    = sample.get_collection_date()
+            orm.status             = sample.get_status().value
+            orm.storage_location   = sample.get_storage_location()
+            orm.notes              = sample.get_notes()
+            orm.expiry_date        = sample.get_expiry_date()
+            orm.quantity           = sample.get_quantity()
+            orm.quantity_unit      = sample.get_quantity_unit()
+            orm.location_building  = sample.get_location_building()
+            orm.location_room      = sample.get_location_room()
+            orm.location_equipment = sample.get_location_equipment()
+            orm.location_position  = sample.get_location_position()
+            orm.parent_sample_id   = sample.get_parent_sample_id()
+            orm.project_id         = sample.get_project_id()
+            orm.reserved_by        = sample.get_reserved_by()
+            orm.reserved_until     = sample.get_reserved_until()
+            orm.reservation_note   = sample.get_reservation_note()
+            orm.updated_at         = sample.get_updated_at()
 
             # Save new audit entries (those beyond what's already in DB)
             existing = (session.query(AuditEntryModel)

@@ -190,15 +190,75 @@ class SampleModel(Base):
         String(200), nullable=False,
         comment="Physical or logical storage location (e.g., Freezer-A3, Shelf-B2)"
     )
+    location_building: str = Column(
+        String(100), nullable=True,
+        comment="Building or facility (e.g. Building A, Main Lab)"
+    )
+    location_room: str = Column(
+        String(100), nullable=True,
+        comment="Room or lab area (e.g. Room 214, Cold Room)"
+    )
+    location_equipment: str = Column(
+        String(100), nullable=True,
+        comment="Storage equipment (e.g. Freezer-A, Fridge-1, Shelf-B)"
+    )
+    location_position: str = Column(
+        String(50), nullable=True,
+        comment="Specific position within equipment (e.g. Shelf 2 Box 3, A1, Drawer 4)"
+    )
     notes: str = Column(
         Text, nullable=True,
         comment="Optional free-text notes about the sample"
+    )
+
+    # ── Expiry tracking ───────────────────────────────────────────────────
+    expiry_date = Column(
+        Date, nullable=True,
+        comment="Date after which the sample should no longer be used"
+    )
+
+    # ── Quantity tracking ─────────────────────────────────────────────────
+    quantity = Column(
+        "quantity", type_=__import__('sqlalchemy').Float, nullable=True,
+        comment="Remaining quantity of the sample"
+    )
+    quantity_unit: str = Column(
+        String(20), nullable=True,
+        comment="Unit of quantity (e.g. ml, mg, ug, units)"
     )
 
     # ── Lifecycle state ───────────────────────────────────────────────────
     status: str = Column(
         String(50), nullable=False, default="Collected",
         comment="Current lifecycle state: Collected | Processing | Stored | Consumed | Discarded"
+    )
+
+    # ── Lineage ───────────────────────────────────────────────────────────
+    parent_sample_id: str = Column(
+        String(20),
+        ForeignKey("samples.sample_id", name="fk_sample_parent", use_alter=True),
+        nullable=True,
+        comment="FK → samples.sample_id — the source sample this was derived from"
+    )
+
+    # ── Project grouping ──────────────────────────────────────────────────
+    project_id: int = Column(
+        Integer, ForeignKey("projects.project_id"), nullable=True,
+        comment="FK → projects.project_id — optional project this sample belongs to"
+    )
+
+    # ── Reservation (soft lock) ───────────────────────────────────────────
+    reserved_by: int = Column(
+        Integer, ForeignKey("users.user_id"), nullable=True,
+        comment="FK → users.user_id — user currently reserving this sample"
+    )
+    reserved_until = Column(
+        DateTime, nullable=True,
+        comment="Reservation expiry datetime — expired reservations are ignored"
+    )
+    reservation_note: str = Column(
+        String(200), nullable=True,
+        comment="Optional note explaining the reservation"
     )
 
     # ── Audit fields ──────────────────────────────────────────────────────
@@ -229,6 +289,26 @@ class SampleModel(Base):
         order_by="AuditEntryModel.timestamp",
         lazy="select",
         doc="Ordered list of status changes for this sample"
+    )
+    parent = relationship(
+        "SampleModel",
+        remote_side="SampleModel.sample_id",
+        foreign_keys=[parent_sample_id],
+        backref="children",
+        doc="Parent sample this one was derived from",
+    )
+    project = relationship(
+        "ProjectModel",
+        back_populates="samples",
+        foreign_keys=[project_id],
+        doc="Project this sample belongs to",
+    )
+    attachments = relationship(
+        "AttachmentModel",
+        back_populates="sample",
+        cascade="all, delete-orphan",
+        lazy="select",
+        doc="File attachments linked to this sample",
     )
 
     # ── Validation ────────────────────────────────────────────────────────
@@ -330,3 +410,69 @@ class AuditEntryModel(Base):
             f"{self.old_status!r} → {self.new_status!r} "
             f"by user {self.changed_by}>"
         )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TABLE: projects
+# ══════════════════════════════════════════════════════════════════════════════
+
+class ProjectModel(Base):
+    """Grouping of samples under a named research project / experiment."""
+    __tablename__ = "projects"
+
+    project_id: int   = Column(Integer, primary_key=True, autoincrement=True)
+    name: str         = Column(String(200), nullable=False, unique=True)
+    description: str  = Column(Text, nullable=True)
+    created_by: int   = Column(Integer, ForeignKey("users.user_id"), nullable=False)
+    created_at        = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    samples = relationship(
+        "SampleModel", back_populates="project",
+        foreign_keys="SampleModel.project_id",
+    )
+
+    def __repr__(self) -> str:
+        return f"<ProjectModel project_id={self.project_id} name={self.name!r}>"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TABLE: attachments
+# ══════════════════════════════════════════════════════════════════════════════
+
+class AttachmentModel(Base):
+    """File attachment (PDF, image, doc) associated with a sample."""
+    __tablename__ = "attachments"
+
+    attachment_id: int  = Column(Integer, primary_key=True, autoincrement=True)
+    sample_id: str      = Column(String(20), ForeignKey("samples.sample_id"), nullable=False)
+    filename: str       = Column(String(255), nullable=False)       # on-disk filename
+    original_name: str  = Column(String(255), nullable=False)
+    file_size: int      = Column(Integer, nullable=False)
+    mime_type: str      = Column(String(100), nullable=True)
+    uploaded_by: int    = Column(Integer, ForeignKey("users.user_id"), nullable=False)
+    uploaded_at         = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    sample = relationship("SampleModel", back_populates="attachments")
+
+    def __repr__(self) -> str:
+        return f"<AttachmentModel id={self.attachment_id} sample={self.sample_id!r} name={self.original_name!r}>"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TABLE: activity_log
+# ══════════════════════════════════════════════════════════════════════════════
+
+class ActivityLogModel(Base):
+    """System-level log of user actions (logins, CRUD operations)."""
+    __tablename__ = "activity_log"
+
+    log_id: int     = Column(Integer, primary_key=True, autoincrement=True)
+    user_id: int    = Column(Integer, ForeignKey("users.user_id"), nullable=True)
+    username: str   = Column(String(100), nullable=True)
+    action: str     = Column(String(100), nullable=False)
+    detail: str     = Column(Text, nullable=True)
+    ip_address: str = Column(String(45), nullable=True)
+    timestamp       = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    def __repr__(self) -> str:
+        return f"<ActivityLogModel id={self.log_id} user={self.username!r} action={self.action!r}>"

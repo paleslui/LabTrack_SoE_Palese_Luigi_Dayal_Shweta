@@ -30,6 +30,40 @@ def configure_db(uri: str) -> None:
 
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
+    # Ensure uploads directory for file attachments exists
+    uploads_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                               "app", "static", "uploads")
+    os.makedirs(uploads_dir, exist_ok=True)
+
+
+def migrate_db() -> None:
+    """
+    Add new columns to existing SQLite DB without data loss.
+    Safe to call on every startup — skips columns that already exist.
+    """
+    from sqlalchemy import text, inspect
+    with engine.connect() as conn:
+        inspector = inspect(engine)
+        existing = [c['name'] for c in inspector.get_columns('samples')]
+        migrations = [
+            ("expiry_date",         "DATE"),
+            ("quantity",            "FLOAT"),
+            ("quantity_unit",       "VARCHAR(20)"),
+            ("location_building",   "VARCHAR(100)"),
+            ("location_room",       "VARCHAR(100)"),
+            ("location_equipment",  "VARCHAR(100)"),
+            ("location_position",   "VARCHAR(50)"),
+            ("parent_sample_id",    "VARCHAR(20)"),
+            ("project_id",          "INTEGER"),
+            ("reserved_by",         "INTEGER"),
+            ("reserved_until",      "DATETIME"),
+            ("reservation_note",    "VARCHAR(200)"),
+        ]
+        for col, col_type in migrations:
+            if col not in existing:
+                conn.execute(text(f"ALTER TABLE samples ADD COLUMN {col} {col_type}"))
+                print(f"✓ Migrated: added samples.{col}")
+        conn.commit()
 
 
 def get_session() -> Session:
@@ -47,6 +81,22 @@ def db_session():
         raise
     finally:
         session.close()
+
+
+def log_activity(user_id, username: str, action: str, detail: str = "", ip: str = "") -> None:
+    """Record a user action in the activity log. Never raises — logging must not break requests."""
+    try:
+        from database.models import ActivityLogModel
+        with db_session() as session:
+            session.add(ActivityLogModel(
+                user_id=user_id if isinstance(user_id, int) else None,
+                username=str(username) if username else None,
+                action=action,
+                detail=detail or None,
+                ip_address=ip or None,
+            ))
+    except Exception:
+        pass
 
 
 def seed_default_users() -> None:
@@ -81,15 +131,16 @@ def seed_demo_samples() -> None:
         if not alice:
             return
         uid = alice.user_id
+        # (type, organism, collect_date, location, status, notes, expiry_date, qty, unit)
         demos = [
-            ('blood',   'Homo sapiens',    date(2025, 1, 10), 'Freezer-A1', 'Stored',     'Morning venipuncture'),
-            ('DNA',     'Mus musculus',    date(2025, 2, 3),  'Fridge-B2',  'Processing', 'Extracted from tail biopsy'),
-            ('tissue',  'Homo sapiens',    date(2025, 3, 15), 'Shelf-C3',   'Collected',  'Post-op biopsy sample'),
-            ('plasma',  'Rattus norveg.',  date(2025, 3, 22), 'Freezer-A3', 'Stored',     ''),
-            ('RNA',     'Homo sapiens',    date(2025, 4, 1),  'Fridge-C2',  'Processing', 'Batch 3 — RIN > 8'),
-            ('serum',   'Mus musculus',    date(2025, 4, 5),  'Freezer-A2', 'Collected',  ''),
+            ('blood',   'Homo sapiens',   date(2025, 1, 10), 'Freezer-A1', 'Stored',     'Morning venipuncture',      date(2025, 7, 10),  5.0,  'ml'),
+            ('DNA',     'Mus musculus',   date(2025, 2, 3),  'Fridge-B2',  'Processing', 'Extracted from tail biopsy', date(2026, 2, 3),   12.5, 'ug'),
+            ('tissue',  'Homo sapiens',   date(2025, 3, 15), 'Shelf-C3',   'Collected',  'Post-op biopsy sample',     date(2025, 9, 15),  2.0,  'mg'),
+            ('plasma',  'Rattus norveg.', date(2025, 3, 22), 'Freezer-A3', 'Stored',     '',                           date(2026, 3, 22),  8.0,  'ml'),
+            ('RNA',     'Homo sapiens',   date(2025, 4, 1),  'Fridge-C2',  'Processing', 'Batch 3 — RIN > 8',         date(2025, 10, 1),  3.5,  'ug'),
+            ('serum',   'Mus musculus',   date(2025, 4, 5),  'Freezer-A2', 'Collected',  '',                           date(2026, 4, 5),   6.0,  'ml'),
         ]
-        for i, (stype, org, col_date, loc, status, notes) in enumerate(demos, start=1):
+        for i, (stype, org, col_date, loc, status, notes, exp_date, qty, unit) in enumerate(demos, start=1):
             year = col_date.year
             session.add(SampleModel(
                 sample_id=f'LT-{year}-{i:04d}',
@@ -99,6 +150,9 @@ def seed_demo_samples() -> None:
                 storage_location=loc,
                 status=status,
                 notes=notes,
+                expiry_date=exp_date,
+                quantity=qty,
+                quantity_unit=unit,
                 created_by=uid,
             ))
         print('✓ Demo samples seeded (6 samples)')

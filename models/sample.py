@@ -31,12 +31,20 @@ class SampleStatus(Enum):
 
 
 # Valid forward transitions — a sample may only move to one of these next states
+# All statuses are fully reversible — any status can move to any other.
+# This allows correction of mistakes, including accidental Consumed or Discarded.
+# The audit log records every change, so corrections are always traceable.
+_ALL = [
+    SampleStatus.COLLECTED,
+    SampleStatus.PROCESSING,
+    SampleStatus.STORED,
+    SampleStatus.CONSUMED,
+    SampleStatus.DISCARDED,
+]
+
 ALLOWED_TRANSITIONS: dict[SampleStatus, list[SampleStatus]] = {
-    SampleStatus.COLLECTED:  [SampleStatus.PROCESSING],
-    SampleStatus.PROCESSING: [SampleStatus.STORED],
-    SampleStatus.STORED:     [SampleStatus.CONSUMED, SampleStatus.DISCARDED],
-    SampleStatus.CONSUMED:   [],   # terminal state
-    SampleStatus.DISCARDED:  [],   # terminal state
+    s: [t for t in _ALL if t != s]
+    for s in _ALL
 }
 
 
@@ -68,6 +76,18 @@ class Sample:
         storage_location: str,
         created_by_id: int,
         notes: str = "",
+        expiry_date=None,
+        quantity: float | None = None,
+        quantity_unit: str | None = None,
+        location_building: str | None = None,
+        location_room: str | None = None,
+        location_equipment: str | None = None,
+        location_position: str | None = None,
+        parent_sample_id: str | None = None,
+        project_id: int | None = None,
+        reserved_by: int | None = None,
+        reserved_until=None,
+        reservation_note: str | None = None,
     ):
         self._sample_id: str = sample_id
         self._sample_type: str = sample_type
@@ -76,6 +96,18 @@ class Sample:
         self._storage_location: str = storage_location
         self._status: SampleStatus = SampleStatus.COLLECTED
         self._notes: str = notes
+        self._expiry_date = expiry_date           # date | None
+        self._quantity: float | None = quantity
+        self._quantity_unit: str | None = quantity_unit
+        self._location_building: str | None = location_building
+        self._location_room: str | None = location_room
+        self._location_equipment: str | None = location_equipment
+        self._location_position: str | None = location_position
+        self._parent_sample_id: str | None = parent_sample_id
+        self._project_id: int | None = project_id
+        self._reserved_by: int | None = reserved_by
+        self._reserved_until = reserved_until
+        self._reservation_note: str | None = reservation_note
         self._created_by_id: int = created_by_id
         self._created_at: datetime = datetime.utcnow()
         self._updated_at: datetime = datetime.utcnow()
@@ -99,6 +131,49 @@ class Sample:
 
     def get_status(self) -> SampleStatus:
         return self._status
+
+    def get_expiry_date(self):
+        return self._expiry_date
+
+    def get_quantity(self) -> float | None:
+        return self._quantity
+
+    def get_quantity_unit(self) -> str | None:
+        return self._quantity_unit
+
+    def get_location_building(self) -> str | None:
+        return self._location_building
+
+    def get_location_room(self) -> str | None:
+        return self._location_room
+
+    def get_location_equipment(self) -> str | None:
+        return self._location_equipment
+
+    def get_location_position(self) -> str | None:
+        return self._location_position
+
+    def get_full_location(self) -> str:
+        """Return ' › '-joined structured location, or fall back to storage_location."""
+        parts = [self._location_building, self._location_room,
+                 self._location_equipment, self._location_position]
+        structured = " › ".join(p for p in parts if p)
+        return structured or self._storage_location or ""
+
+    def get_parent_sample_id(self) -> str | None:
+        return self._parent_sample_id
+
+    def get_project_id(self) -> int | None:
+        return self._project_id
+
+    def get_reserved_by(self) -> int | None:
+        return self._reserved_by
+
+    def get_reserved_until(self):
+        return self._reserved_until
+
+    def get_reservation_note(self) -> str | None:
+        return self._reservation_note
 
     def get_notes(self) -> str:
         return self._notes
@@ -171,10 +246,22 @@ class Sample:
             "sample_id":        self._sample_id,
             "sample_type":      self._sample_type,
             "source_organism":  self._source_organism,
-            "collection_date":  self._collection_date.isoformat(),
+            "collection_date":  self._collection_date.strftime("%Y-%m-%d"),
             "storage_location": self._storage_location,
             "status":           self._status.value,
             "notes":            self._notes,
+            "expiry_date":      self._expiry_date.strftime("%Y-%m-%d") if self._expiry_date else None,
+            "quantity":         self._quantity,
+            "quantity_unit":    self._quantity_unit,
+            "location_building":  self._location_building,
+            "location_room":      self._location_room,
+            "location_equipment": self._location_equipment,
+            "location_position":  self._location_position,
+            "parent_sample_id":   self._parent_sample_id,
+            "project_id":         self._project_id,
+            "reserved_by":        self._reserved_by,
+            "reserved_until":     self._reserved_until.isoformat() if self._reserved_until else None,
+            "reservation_note":   self._reservation_note,
             "created_by_id":    self._created_by_id,
             "created_at":       self._created_at.isoformat(),
             "updated_at":       self._updated_at.isoformat(),
