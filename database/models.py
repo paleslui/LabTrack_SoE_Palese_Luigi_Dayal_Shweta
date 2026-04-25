@@ -101,6 +101,14 @@ class UserModel(Base):
         Boolean, nullable=False, default=True,
         comment="False = soft-deleted account (retained for audit trail)"
     )
+    failed_login_attempts: int = Column(
+        Integer, nullable=False, default=0,
+        comment="Consecutive failed login attempts — resets on successful login"
+    )
+    locked_until = Column(
+        DateTime, nullable=True,
+        comment="Account locked until this UTC time after too many failed attempts"
+    )
     created_at: datetime = Column(
         DateTime, nullable=False, default=datetime.utcnow,
         comment="UTC timestamp of account creation"

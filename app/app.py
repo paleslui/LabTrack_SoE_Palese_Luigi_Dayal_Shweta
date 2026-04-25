@@ -7,17 +7,40 @@ from .routes.auth_routes    import auth_bp
 from .routes.sample_routes  import sample_bp
 from .routes.user_routes    import user_bp
 from .routes.project_routes import project_bp
+from datetime import timedelta
+import os
+
+# Load .env file (SECRET_KEY, MAIL credentials)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 
 def create_app(config: dict | None = None) -> Flask:
     app = Flask(__name__)
 
     app.config.update(
-        SECRET_KEY="labtrack-dev-secret-change-in-production",
+        # Secret key from .env — never hardcoded
+        SECRET_KEY=os.environ.get("SECRET_KEY", os.urandom(32)),
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
+        SESSION_COOKIE_SECURE=False,        # Set True when HTTPS enabled
+        PERMANENT_SESSION_LIFETIME=timedelta(hours=8),  # Auto-logout after 8h
         DATABASE_URI="sqlite:///labtrack.db",
         MAX_CONTENT_LENGTH=5 * 1024 * 1024,
+        # ── Email / SMTP settings ────────────────────────────────────────
+        # Disabled by default — set MAIL_ENABLED=True and fill in credentials
+        # (Gmail users: create an App Password at Google Account → Security)
+        MAIL_ENABLED=False,
+        MAIL_SERVER="smtp.gmail.com",
+        MAIL_PORT=587,
+        MAIL_USE_TLS=True,
+        MAIL_USERNAME="",
+        MAIL_PASSWORD="",
+        MAIL_FROM="LabTrack <noreply@labtrack.local>",
+        MAIL_EXPIRY_DAYS_WARNING=7,
     )
 
     if config:
@@ -25,17 +48,160 @@ def create_app(config: dict | None = None) -> Flask:
 
     # ── Initialise DB and seed default users ──────────────────────────────
     if not config or not config.get("TESTING"):
-        from database.db import init_db, migrate_db, seed_default_users, seed_demo_samples
+        from database.db import (init_db, migrate_db, seed_default_users,
+                                  seed_demo_projects, seed_demo_samples)
         init_db()
         migrate_db()
         seed_default_users()
+        seed_demo_projects()
         seed_demo_samples()
+
+        # ── Background scheduler: daily expiry check / email notifications ─
+        from flask_apscheduler import APScheduler
+        from datetime import date
+
+        app.config["SCHEDULER_API_ENABLED"] = False
+        scheduler = APScheduler()
+        scheduler.init_app(app)
+
+        @scheduler.task("interval", id="expiry_check", hours=24, misfire_grace_time=3600)
+        def check_expiring_samples():
+            with app.app_context():
+                from repositories.sample_repository import SampleRepository
+                from repositories.user_repository import UserRepository
+                from database.db import send_email
+                repo      = SampleRepository()
+                user_repo = UserRepository()
+                today     = date.today()
+                warn_days = app.config.get("MAIL_EXPIRY_DAYS_WARNING", 7)
+
+                for sample in repo.get_all():
+                    exp = sample.get_expiry_date()
+                    if not exp:
+                        continue
+                    days_left = (exp - today).days
+                    if days_left not in (warn_days, 0):
+                        continue
+                    if sample.get_status().value in ("Consumed", "Discarded"):
+                        continue
+                    creator = user_repo.get_by_id(sample.get_created_by_id())
+                    if not creator or not creator.get_email():
+                        continue
+
+                    if days_left == 0:
+                        subject = f"[LabTrack] Sample {sample.get_sample_id()} has expired today"
+                        body = (
+                            f"Dear {creator.get_username()},\n\n"
+                            f"Sample {sample.get_sample_id()} ({sample.get_sample_type()} — "
+                            f"{sample.get_source_organism()}) has reached its expiry date today "
+                            f"({exp}).\n\n"
+                            f"Current status: {sample.get_status().value}\n"
+                            f"Storage location: {sample.get_storage_location()}\n\n"
+                            f"Please review this sample and update its status accordingly.\n\n"
+                            f"LabTrack Laboratory Sample Management\n"
+                            f"http://localhost:5001/view/{sample.get_sample_id()}"
+                        )
+                    else:
+                        subject = f"[LabTrack] Sample {sample.get_sample_id()} expires in {days_left} days"
+                        body = (
+                            f"Dear {creator.get_username()},\n\n"
+                            f"Sample {sample.get_sample_id()} ({sample.get_sample_type()} — "
+                            f"{sample.get_source_organism()}) will expire in {days_left} days "
+                            f"(on {exp}).\n\n"
+                            f"Current status: {sample.get_status().value}\n"
+                            f"Storage location: {sample.get_storage_location()}\n\n"
+                            f"Please ensure this sample is used or properly disposed of before expiry.\n\n"
+                            f"LabTrack Laboratory Sample Management\n"
+                            f"http://localhost:5001/view/{sample.get_sample_id()}"
+                        )
+
+                    sent = send_email(app.config, creator.get_email(), subject, body)
+                    if sent:
+                        print(f"[LabTrack] Expiry notification sent for "
+                              f"{sample.get_sample_id()} to {creator.get_email()}")
+
+        scheduler.start()
 
     # ── Register Blueprints ───────────────────────────────────────────────
     app.register_blueprint(auth_bp,    url_prefix="/api/auth")
     app.register_blueprint(sample_bp,  url_prefix="/api/samples")
     app.register_blueprint(user_bp,    url_prefix="/api/users")
     app.register_blueprint(project_bp, url_prefix="/api/projects")
+
+    # ── Rate limiting ─────────────────────────────────────────────────────
+    # 5 login attempts / minute per IP — prevents brute force attacks
+    try:
+        from flask_limiter import Limiter
+        from flask_limiter.util import get_remote_address
+        limiter = Limiter(
+            get_remote_address,
+            app=app,
+            default_limits=["300 per minute"],
+            storage_uri="memory://",
+        )
+        # Strict limit on auth endpoints only
+        limiter.limit("5 per minute", error_message="Too many login attempts. Wait 1 minute.")(auth_bp)
+    except ImportError:
+        pass  # flask-limiter not installed — skip
+
+    # ── CSRF protection ───────────────────────────────────────────────────
+    # Double-submit cookie pattern: a random token is set in a JS-readable
+    # cookie (no HttpOnly) and must be sent back as a request header on all
+    # mutating requests (POST, PUT, PATCH, DELETE).
+    # Cross-origin attackers cannot read our cookies, so they cannot forge the header.
+    import secrets as _secrets
+
+    @app.before_request
+    def set_csrf_token():
+        from flask import request as req, make_response
+        if not req.cookies.get("csrf_token"):
+            # Token set on first visit; re-read on every request
+            pass  # set in after_request below
+
+    @app.after_request
+    def csrf_cookie_and_verify(response):
+        from flask import request as req
+        # Set the CSRF cookie if not present
+        if not req.cookies.get("csrf_token"):
+            token = _secrets.token_hex(32)
+            response.set_cookie(
+                "csrf_token", token,
+                samesite="Lax",
+                secure=False,  # set True when HTTPS enabled
+                httponly=False, # must be JS-readable
+            )
+        # Verify CSRF for mutating methods on API routes.
+        # Exempt: TESTING mode, auth endpoints (no session yet), and requests
+        # where the cookie was just set in THIS response (first visit).
+        cookie_in_request = req.cookies.get("csrf_token", "")
+        if (not app.config.get("TESTING")
+                and req.method in ("POST","PUT","PATCH","DELETE")
+                and req.path.startswith("/api/")
+                and not req.path.startswith("/api/auth/")  # all auth routes exempt
+                and cookie_in_request):  # only verify if cookie existed before this request
+            header_token = req.headers.get("X-CSRF-Token", "")
+            if not _secrets.compare_digest(cookie_in_request, header_token):
+                from flask import jsonify as _jsonify
+                return _jsonify({"error": "CSRF token missing or invalid"}), 403
+        return response
+
+    # ── Security headers ──────────────────────────────────────────────────
+    # Applied to every response — protects against common web attacks
+    @app.after_request
+    def set_security_headers(response):
+        response.headers["X-Frame-Options"]       = "DENY"               # No iframe embedding (clickjacking)
+        response.headers["X-Content-Type-Options"] = "nosniff"           # No MIME sniffing
+        response.headers["Referrer-Policy"]        = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"]     = "geolocation=(), microphone=(), camera=()"
+        response.headers["X-XSS-Protection"]       = "1; mode=block"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data: blob:; "
+            "connect-src 'self' https: http:;"  # allow tunnel URLs
+        )
+        return response
 
     # ── Serve the HTML frontend ───────────────────────────────────────────
     @app.route("/")

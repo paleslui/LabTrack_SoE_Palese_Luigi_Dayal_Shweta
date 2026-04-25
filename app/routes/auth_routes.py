@@ -41,19 +41,57 @@ def login():
         return jsonify({"error": "username and password are required"}), 400
 
     from repositories.user_repository import UserRepository
-    repo = UserRepository()
+    from database.db import db_session
+    from database.models import UserModel
+    from datetime import datetime, timedelta
 
+    repo = UserRepository()
     user = repo.get_by_username(username)
+
+    # Unknown user — generic message (don't reveal which field is wrong)
     if user is None or not user.is_active():
         return jsonify({"error": "Invalid credentials"}), 401
 
-    stored_hash = repo.get_password_hash(username)
-    if not bcrypt.checkpw(password.encode(), stored_hash.encode()):
-        return jsonify({"error": "Invalid credentials"}), 401
+    # ── Account lockout check ─────────────────────────────────────────────
+    MAX_ATTEMPTS = 5
+    LOCKOUT_MINUTES = 15
+
+    with db_session() as sess:
+        orm = sess.query(UserModel).filter_by(username=username).first()
+
+        # Check if currently locked
+        if orm.locked_until and datetime.utcnow() < orm.locked_until:
+            remaining = int((orm.locked_until - datetime.utcnow()).total_seconds() / 60) + 1
+            return jsonify({
+                "error": f"Account locked due to too many failed attempts. "
+                         f"Try again in {remaining} minute(s)."
+            }), 429
+
+        stored_hash = repo.get_password_hash(username)
+        if not bcrypt.checkpw(password.encode(), stored_hash.encode()):
+            # Increment failure counter
+            attempts = (orm.failed_login_attempts or 0) + 1
+            orm.failed_login_attempts = attempts
+            if attempts >= MAX_ATTEMPTS:
+                orm.locked_until = datetime.utcnow() + timedelta(minutes=LOCKOUT_MINUTES)
+                sess.commit()
+                return jsonify({
+                    "error": f"Too many failed attempts. Account locked for {LOCKOUT_MINUTES} minutes."
+                }), 429
+            sess.commit()
+            remaining_attempts = MAX_ATTEMPTS - attempts
+            return jsonify({
+                "error": f"Invalid credentials. {remaining_attempts} attempt(s) remaining."
+            }), 401
+
+        # Successful login — reset counter and lockout
+        orm.failed_login_attempts = 0
+        orm.locked_until = None
 
     session["user_id"]   = user.get_user_id()
     session["user_role"] = user.get_role()
     session["username"]  = user.get_username()
+    session.permanent    = True  # Apply PERMANENT_SESSION_LIFETIME
 
     from database.db import log_activity
     log_activity(user.get_user_id(), user.get_username(), "login",

@@ -86,20 +86,20 @@ tr:last-child td{border-bottom:none} tr:hover td{background:#FAFCFF}
 <div id="login-wrap">
   <div class="login-box">
     <h1>LabTrack</h1>
-    <p class="sub">Laboratory Sample Management System</p>
+    <p class="sub" data-i18n="login.subtitle">Laboratory Sample Management System</p>
     <div class="hint">
-      <b>Demo accounts:</b><br>
+      <b data-i18n="login.hint">Demo accounts:</b><br>
       alice / alice123 → researcher<br>
       bob &nbsp;/ bob123 &nbsp;&nbsp;→ technician<br>
       carol / carol123 → admin<br>
       dave &nbsp;/ dave123 &nbsp;&nbsp;→ viewer
     </div>
     <div id="login-err" class="alert alert-err"></div>
-    <label>Username</label>
+    <label data-i18n="login.username">Username</label>
     <input id="un" type="text" placeholder="username" autocomplete="username">
-    <label>Password</label>
+    <label data-i18n="login.password">Password</label>
     <input id="pw" type="password" placeholder="password" autocomplete="current-password">
-    <button class="btn btn-primary btn-full" id="login-btn" onclick="doLogin()">Log in</button>
+    <button class="btn btn-primary btn-full" id="login-btn" onclick="doLogin()"><span data-i18n="login.button">Log in</span></button>
   </div>
 </div>
 
@@ -111,59 +111,69 @@ tr:last-child td{border-bottom:none} tr:hover td{background:#FAFCFF}
             onclick="switchTab('dashboard')"
             onmousedown="tapTab('dashboard', event)"
             onpointerdown="tapTab('dashboard', event)"
-            ontouchend="tapTab('dashboard', event)">Dashboard</button>
+            ontouchend="tapTab('dashboard', event)"><span data-i18n="nav.dashboard">Dashboard</span></button>
     <button type="button" class="tab" id="tab-samples"
             onclick="switchTab('samples')"
             onmousedown="tapTab('samples', event)"
             onpointerdown="tapTab('samples', event)"
-            ontouchend="tapTab('samples', event)">Samples</button>
-    <button type="button" class="tab" id="tab-projects" onclick="openProjects()">Projects</button>
+            ontouchend="tapTab('samples', event)"><span data-i18n="nav.samples">Samples</span></button>
+    <button type="button" class="tab" id="tab-projects" onclick="openProjects()"><span data-i18n="nav.projects">Projects</span></button>
     <button type="button" class="tab" id="tab-admin"
             onclick="switchTab('admin')"
             onmousedown="tapTab('admin', event)"
             onpointerdown="tapTab('admin', event)"
-            ontouchend="tapTab('admin', event)" hidden>Admin</button>
+            ontouchend="tapTab('admin', event)" hidden><span data-i18n="nav.admin">Admin</span></button>
     <div class="right">
+      <button onclick="toggleLanguage()" id="lang-toggle"
+              style="background:transparent;border:1px solid #4A6FA5;color:#B0C4DE;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:13px">🇩🇪 DE</button>
       <span class="who" id="nav-user" onclick="openProfile()" style="cursor:pointer;text-decoration:underline;text-underline-offset:3px" title="Edit my profile"></span>
-      <button type="button" class="tab" id="tab-logout" onclick="doLogout()">Logout</button>
+      <button type="button" class="tab" id="tab-logout" onclick="doLogout()"><span data-i18n="nav.logout">Logout</span></button>
     </div>
   </nav>
 
   <!-- DASHBOARD -->
   <div id="page-dashboard" class="page">
     <div class="stats" style="grid-template-columns:repeat(5,1fr)">
-      <div class="stat dark"><div class="lbl">Total</div><div class="val" id="st-total">—</div></div>
-      <div class="stat green"><div class="lbl">Collected</div><div class="val" id="st-collected">—</div></div>
-      <div class="stat amber"><div class="lbl">Processing</div><div class="val" id="st-processing">—</div></div>
-      <div class="stat blue"><div class="lbl">Stored</div><div class="val" id="st-stored">—</div></div>
-      <div class="stat" style="border-left:4px solid #BA7517"><div class="lbl">This month</div><div class="val" id="st-month">—</div></div>
+      <div class="stat dark"><div class="lbl" data-i18n="dash.total">Total</div><div class="val" id="st-total">—</div></div>
+      <div class="stat green"><div class="lbl" data-i18n="dash.collected">Collected</div><div class="val" id="st-collected">—</div></div>
+      <div class="stat amber"><div class="lbl" data-i18n="dash.processing">Processing</div><div class="val" id="st-processing">—</div></div>
+      <div class="stat blue"><div class="lbl" data-i18n="dash.stored">Stored</div><div class="val" id="st-stored">—</div></div>
+      <div class="stat" style="border-left:4px solid #BA7517"><div class="lbl" data-i18n="dash.thismonth">This month</div><div class="val" id="st-month">—</div></div>
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px">
       <div class="card">
-        <div class="card-title">By type</div>
+        <div class="card-title" data-i18n="dash.bytype">By type</div>
         <div id="chart-type" style="font-size:13px"></div>
       </div>
       <div class="card">
-        <div class="card-title">By organism</div>
+        <div class="card-title" data-i18n="dash.byorganism">By organism</div>
         <div id="chart-org" style="font-size:13px"></div>
       </div>
       <div class="card">
-        <div class="card-title">Status breakdown</div>
+        <div class="card-title" data-i18n="dash.bystatus">Status breakdown</div>
         <div id="chart-status" style="font-size:13px"></div>
       </div>
     </div>
 
     <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px">
       <div class="card">
-        <div class="card-title">Recent samples</div>
+        <div class="card-title" data-i18n="dash.recent">Recent samples</div>
         <table>
-          <thead><tr><th>Sample ID</th><th>Type</th><th>Organism</th><th>Status</th><th>Location</th><th>Registered</th><th>Expiry</th></tr></thead>
-          <tbody id="dash-table"><tr><td colspan="6" class="empty"><span class="spin"></span>Loading…</td></tr></tbody>
+          <thead><tr>
+            <th data-i18n="col.sampleid">Sample ID</th>
+            <th data-i18n="col.type">Type</th>
+            <th data-i18n="col.organism">Organism</th>
+            <th data-i18n="col.status">Status</th>
+            <th data-i18n="col.location">Location</th>
+            <th data-i18n="col.date">Registered</th>
+            <th data-i18n="col.expiry">Expiry</th>
+          </tr></thead>
+          <tbody id="dash-table"><tr><td colspan="7" class="empty"><span class="spin"></span>Loading…</td></tr></tbody>
         </table>
       </div>
       <div class="card">
-        <div class="card-title">Top contributors</div>
+        <div class="card-title" data-i18n="dash.topusers">Top contributors</div>
         <div id="chart-users" style="font-size:13px"></div>
       </div>
     </div>
@@ -172,41 +182,49 @@ tr:last-child td{border-bottom:none} tr:hover td{background:#FAFCFF}
   <!-- SAMPLES -->
   <div id="page-samples" class="page">
     <div class="topbar">
-      <h2 style="color:#1F3864">Sample inventory</h2>
+      <h2 style="color:#1F3864" data-i18n="samples.title">Sample inventory</h2>
       <div style="display:flex;gap:8px;align-items:center">
-        <button class="btn btn-secondary btn-sm" onclick="exportCSV()">↓ Export CSV</button>
-        <button class="btn btn-primary btn-sm" id="btn-register" onclick="openRegister()" style="display:none">+ Register sample</button>
+        <button class="btn btn-secondary btn-sm" onclick="exportCSV()"><span data-i18n="samples.export">↓ Export CSV</span></button>
+        <button class="btn btn-primary btn-sm" id="btn-register" onclick="openRegister()" style="display:none"><span data-i18n="samples.register">+ Register sample</span></button>
       </div>
     </div>
     <div class="filter-bar">
-      <div class="f"><label>Type</label><input id="f-type" placeholder="e.g. blood"></div>
-      <div class="f"><label>Status</label>
+      <div class="f"><label data-i18n="samples.type">Type</label><input id="f-type" placeholder="e.g. blood"></div>
+      <div class="f"><label data-i18n="col.status">Status</label>
         <select id="f-status">
-          <option value="">All statuses</option>
-          <option>Collected</option><option>Processing</option>
-          <option>Stored</option><option>Consumed</option><option>Discarded</option>
+          <option value="" data-i18n="samples.statusAll">All statuses</option>
+          <option data-i18n="status.Collected">Collected</option><option data-i18n="status.Processing">Processing</option>
+          <option data-i18n="status.Stored">Stored</option><option data-i18n="status.Consumed">Consumed</option><option data-i18n="status.Discarded">Discarded</option>
         </select>
       </div>
-      <div class="f"><label>Location</label><input id="f-loc" placeholder="e.g. Freezer-A1"></div>
-      <div class="f"><label>Date from</label><input id="f-date-from" type="date"></div>
-      <div class="f"><label>Date to</label><input id="f-date-to" type="date"></div>
-      <div class="f" id="filter-submitted-by-wrap"><label>Submitted by</label><input id="f-submitted-by" placeholder="username"></div>
-      <div class="f"><label>Project</label>
-        <select id="f-project"><option value="">All projects</option></select>
+      <div class="f"><label data-i18n="samples.location">Location</label><input id="f-loc" placeholder="e.g. Freezer-A1"></div>
+      <div class="f"><label data-i18n="samples.datefrom">Date from</label><input id="f-date-from" type="date"></div>
+      <div class="f"><label data-i18n="samples.dateto">Date to</label><input id="f-date-to" type="date"></div>
+      <div class="f" id="filter-submitted-by-wrap"><label data-i18n="samples.submittedby">Submitted by</label><input id="f-submitted-by" placeholder="username"></div>
+      <div class="f"><label data-i18n="samples.project">Project</label>
+        <select id="f-project"><option value="" data-i18n="samples.allprojects">All projects</option></select>
       </div>
       <div class="f"><label>&nbsp;</label>
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-top:0">
-          <input type="checkbox" id="f-reserved" style="width:auto;margin:0"> Reserved only
+          <input type="checkbox" id="f-reserved" style="width:auto;margin:0"> <span data-i18n="samples.reservedonly">Reserved only</span>
         </label>
       </div>
-      <div><label>&nbsp;</label><button class="btn btn-secondary" onclick="loadSamples()">Search</button>
-      <button class="btn btn-secondary" onclick="clearFilters()" style="margin-left:6px">Clear</button></div>
+      <div><label>&nbsp;</label><button class="btn btn-secondary" onclick="loadSamples()"><span data-i18n="samples.search">Search</span></button>
+      <button class="btn btn-secondary" onclick="clearFilters()" style="margin-left:6px"><span data-i18n="samples.clear">Clear</span></button></div>
     </div>
     <div class="card" style="padding:0">
       <table>
         <thead><tr>
           <th><input type="checkbox" id="select-all" onclick="toggleSelectAll(this)"></th>
-          <th>Sample ID</th><th>Type</th><th>Organism</th><th>Status</th><th>Location</th><th>Date</th><th>Expiry</th><th>Qty</th><th></th>
+          <th data-i18n="col.sampleid">Sample ID</th>
+          <th data-i18n="col.type">Type</th>
+          <th data-i18n="col.organism">Organism</th>
+          <th data-i18n="col.status">Status</th>
+          <th data-i18n="col.location">Location</th>
+          <th data-i18n="col.date">Date</th>
+          <th data-i18n="col.expiry">Expiry</th>
+          <th data-i18n="col.qty">Qty</th>
+          <th></th>
         </tr></thead>
         <tbody id="sample-table"><tr><td colspan="8" class="empty"><span class="spin"></span>Loading…</td></tr></tbody>
       </table>
@@ -214,21 +232,21 @@ tr:last-child td{border-bottom:none} tr:hover td{background:#FAFCFF}
     <div id="bulk-bar" style="display:none;background:#1F3864;color:#fff;padding:10px 16px;border-radius:6px;margin-top:10px;align-items:center;gap:12px;flex-wrap:wrap">
       <span id="bulk-count" style="font-size:13px;font-weight:bold"></span>
       <select id="bulk-status-select" style="padding:5px 8px;border-radius:4px;border:none;font-size:13px">
-        <option value="">Change status to…</option>
-        <option>Collected</option><option>Processing</option>
-        <option>Stored</option><option>Consumed</option><option>Discarded</option>
+        <option value="" data-i18n="bulk.changeto">Change status to…</option>
+        <option data-i18n="status.Collected">Collected</option><option data-i18n="status.Processing">Processing</option>
+        <option data-i18n="status.Stored">Stored</option><option data-i18n="status.Consumed">Consumed</option><option data-i18n="status.Discarded">Discarded</option>
       </select>
-      <button class="btn btn-secondary btn-sm" onclick="doBulkStatus()">Apply</button>
-      <button class="btn btn-secondary btn-sm" onclick="doBulkExport()">↓ Export selected</button>
-      <button class="btn btn-secondary btn-sm" onclick="doBulkLabels()">🏷 Print labels</button>
-      <button class="btn btn-danger btn-sm" id="btn-bulk-delete" style="display:none" onclick="doBulkDelete()">🗑 Delete selected</button>
-      <button class="btn btn-secondary btn-sm" onclick="clearSelection()" style="margin-left:auto">✕ Clear</button>
+      <button class="btn btn-secondary btn-sm" onclick="doBulkStatus()"><span data-i18n="bulk.apply">Apply</span></button>
+      <button class="btn btn-secondary btn-sm" onclick="doBulkExport()"><span data-i18n="bulk.export">↓ Export selected</span></button>
+      <button class="btn btn-secondary btn-sm" onclick="doBulkLabels()"><span data-i18n="bulk.labels">🏷 Print labels</span></button>
+      <button class="btn btn-danger btn-sm" id="btn-bulk-delete" style="display:none" onclick="doBulkDelete()"><span data-i18n="bulk.delete">🗑 Delete selected</span></button>
+      <button class="btn btn-secondary btn-sm" onclick="clearSelection()" style="margin-left:auto"><span data-i18n="bulk.clear">✕ Clear</span></button>
     </div>
     <p id="sample-count" style="font-size:13px;color:#888;margin-top:8px"></p>
 
     <!-- CSV import — visible to researcher and admin only, controlled by show() -->
     <div id="csv-import-card" class="card" style="margin-top:16px;display:none">
-      <div class="card-title">Bulk CSV import</div>
+      <div class="card-title" data-i18n="admin.csvimport">Bulk CSV import</div>
       <p style="font-size:13px;color:#666;margin-bottom:12px">
         Required columns: <code>sample_type, source_organism, collection_date (YYYY-MM-DD), storage_location</code> — optional: <code>notes</code>
       </p>
@@ -237,7 +255,7 @@ tr:last-child td{border-bottom:none} tr:hover td{background:#FAFCFF}
            ondragover="event.preventDefault();this.style.borderColor='#2E75B6'"
            ondragleave="this.style.borderColor='#CCCCCC'"
            ondrop="handleCsvDrop(event)">
-        <p style="color:#888;font-size:14px">Drop a CSV file here or click to choose</p>
+        <p style="color:#888;font-size:14px" data-i18n="admin.csvdrop">Drop a CSV file here or click to choose</p>
         <input type="file" id="csv-file-input" accept=".csv" style="display:none" onchange="handleCsvFile(this.files[0])">
       </div>
       <div id="csv-result" class="alert" style="margin-top:12px"></div>
@@ -249,37 +267,37 @@ tr:last-child td{border-bottom:none} tr:hover td{background:#FAFCFF}
     <div class="topbar">
       <h2 id="detail-title" style="color:#1F3864">Sample detail</h2>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-secondary btn-sm" id="btn-print-label" onclick="printLabel()">🏷 Print label</button>
+        <button class="btn btn-secondary btn-sm" id="btn-print-label" onclick="printLabel()"><span data-i18n="detail.print">🏷 Print label</span></button>
         <button class="btn btn-secondary btn-sm" onclick="exportSampleAudit()">↓ Audit log</button>
         <button class="btn btn-primary btn-sm" id="btn-edit-sample" style="display:none" onclick="openEditSample()">✏ Edit</button>
         <button class="btn btn-danger btn-sm" id="btn-delete-sample" style="display:none" onclick="doDeleteSample()">🗑 Delete</button>
-        <button class="btn btn-secondary btn-sm" onclick="show('samples')">← Back</button>
+        <button class="btn btn-secondary btn-sm" onclick="show('samples')"><span data-i18n="detail.back">← Back</span></button>
       </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 290px;gap:16px">
       <div class="card">
-        <div class="card-title">Sample information</div>
+        <div class="card-title" data-i18n="detail.info">Sample information</div>
         <div class="detail-grid" id="detail-info"></div>
       </div>
       <div class="card" id="status-panel">
-        <div class="card-title">Lifecycle status</div>
+        <div class="card-title" data-i18n="detail.status">Lifecycle status</div>
         <div id="current-badge" style="margin-bottom:14px"></div>
         <div id="update-controls">
-          <label>Update to</label>
+          <label data-i18n="detail.updateto">Update to</label>
           <select id="next-status"></select>
-          <button class="btn btn-primary btn-sm" style="margin-top:10px;width:100%" onclick="doUpdateStatus()">Update status</button>
+          <button class="btn btn-primary btn-sm" style="margin-top:10px;width:100%" onclick="doUpdateStatus()"><span data-i18n="detail.update">Update status</span></button>
         </div>
         <div id="status-msg" class="alert" style="margin-top:10px"></div>
       </div>
     </div>
     <div class="card">
-      <div class="card-title">Audit log</div>
-      <div class="audit-row head"><span>Timestamp</span><span>From</span><span>To</span><span>Changed by</span></div>
+      <div class="card-title" data-i18n="detail.auditlog">Audit log</div>
+      <div class="audit-row head"><span data-i18n="detail.timestamp">Timestamp</span><span data-i18n="detail.from">From</span><span data-i18n="detail.to">To</span><span data-i18n="detail.by">Changed by</span></div>
       <div id="audit-log"><div class="empty">No status changes recorded yet.</div></div>
     </div>
 
     <div id="parent-section" class="card" style="margin-top:0;display:none">
-      <div class="card-title">Derived from</div>
+      <div class="card-title" data-i18n="detail.derivedfrom">Derived from</div>
       <p style="font-size:14px">This sample was extracted from
         <span id="parent-link" style="color:#2E75B6;cursor:pointer;font-family:monospace;font-weight:bold"></span>
         — click to view parent sample.
@@ -287,18 +305,18 @@ tr:last-child td{border-bottom:none} tr:hover td{background:#FAFCFF}
     </div>
 
     <div id="children-section" class="card" style="margin-top:0;display:none">
-      <div class="card-title">Derived samples</div>
+      <div class="card-title" data-i18n="detail.children">Derived samples</div>
       <p style="font-size:13px;color:#888;margin-bottom:8px">The following samples were extracted from this one:</p>
       <div id="children-list"></div>
     </div>
 
     <div id="reservation-section" class="card" style="margin-top:0">
-      <div class="card-title">Reservation</div>
+      <div class="card-title" data-i18n="detail.reservation">Reservation</div>
       <div id="reservation-body"><span style="color:#AAA;font-size:13px">Loading…</span></div>
     </div>
 
     <div id="attachments-section" class="card" style="margin-top:0">
-      <div class="card-title">Attachments</div>
+      <div class="card-title" data-i18n="detail.attachments">Attachments</div>
       <div id="attachments-list"><span style="color:#AAA;font-size:13px">No attachments.</span></div>
       <div id="attach-drop-zone" style="display:none;border:2px dashed #CCC;border-radius:6px;padding:16px;text-align:center;cursor:pointer;margin-top:12px"
            onclick="$('attach-file-input').click()"
@@ -317,10 +335,10 @@ tr:last-child td{border-bottom:none} tr:hover td{background:#FAFCFF}
   <!-- ADMIN -->
   <div id="page-admin" class="page">
     <div class="topbar">
-      <h2 style="color:#1F3864">User management</h2>
+      <h2 style="color:#1F3864" data-i18n="admin.title">User management</h2>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-secondary btn-sm" onclick="exportFullAudit()">↓ Full audit log</button>
-        <button class="btn btn-primary btn-sm" onclick="openCreateUser()">+ New user</button>
+        <button class="btn btn-secondary btn-sm" onclick="exportFullAudit()"><span data-i18n="admin.fullaudit">↓ Full audit log</span></button>
+        <button class="btn btn-primary btn-sm" onclick="openCreateUser()"><span data-i18n="admin.newuser">+ New user</span></button>
       </div>
     </div>
     <div id="admin-msg" class="alert"></div>
@@ -332,8 +350,22 @@ tr:last-child td{border-bottom:none} tr:hover td{background:#FAFCFF}
     </div>
 
     <div class="card" style="margin-top:16px">
+      <div class="card-title" data-i18n="admin.email">Email notifications</div>
+      <p style="font-size:13px;color:#666;margin-bottom:12px">
+        Expiry alerts are sent automatically every 24 hours. To enable, set
+        <code>MAIL_ENABLED = True</code> and configure SMTP in <code>app/app.py</code>.
+      </p>
+      <div style="display:flex;gap:10px;align-items:center">
+        <button class="btn btn-secondary btn-sm" onclick="sendTestEmail()">
+          <span data-i18n="admin.testmail">Send test email to myself</span>
+        </button>
+        <span id="email-test-result" style="font-size:13px;color:#888"></span>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
       <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
-        <span>Activity log</span>
+        <span data-i18n="admin.activity">Activity log</span>
         <div style="display:flex;gap:6px;align-items:center">
           <input id="act-filter-user" placeholder="filter by username" style="padding:4px 8px;font-size:12px;width:160px">
           <input id="act-filter-action" placeholder="filter by action" style="padding:4px 8px;font-size:12px;width:140px">
@@ -426,22 +458,22 @@ tr:last-child td{border-bottom:none} tr:hover td{background:#FAFCFF}
 <!-- PROJECTS MODAL -->
 <div class="modal-bg" id="projects-modal">
   <div class="modal" style="width:640px;max-width:95vw">
-    <h3>Projects</h3>
+    <h3 data-i18n="projects.title">Projects</h3>
     <div id="projects-err" class="alert alert-err"></div>
     <div id="projects-ok"  class="alert alert-ok"></div>
     <div id="projects-list" style="max-height:320px;overflow-y:auto;margin-bottom:16px">
       <div class="empty">Loading…</div>
     </div>
     <div id="new-project-form" style="border-top:1px solid #EEE;padding-top:14px;display:none">
-      <div class="card-title" style="margin-bottom:10px">New project</div>
+      <div class="card-title" style="margin-bottom:10px" data-i18n="projects.new">New project</div>
       <div class="row2">
-        <div><label>Name *</label><input id="np-name" placeholder="e.g. COVID-19 cohort A"></div>
-        <div><label>Description</label><input id="np-desc" placeholder="Short description"></div>
+        <div><label data-i18n="projects.name">Name *</label><input id="np-name" placeholder="e.g. COVID-19 cohort A"></div>
+        <div><label data-i18n="projects.desc">Description</label><input id="np-desc" placeholder="Short description"></div>
       </div>
-      <button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="doCreateProject()">Create project</button>
+      <button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="doCreateProject()"><span data-i18n="projects.create">Create project</span></button>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeProjects()">Close</button>
+      <button class="btn btn-secondary" onclick="closeProjects()"><span data-i18n="projects.close">Close</span></button>
     </div>
   </div>
 </div>
@@ -449,38 +481,38 @@ tr:last-child td{border-bottom:none} tr:hover td{background:#FAFCFF}
 <!-- REGISTER MODAL -->
 <div class="modal-bg" id="register-modal">
   <div class="modal">
-    <h3>Register new sample</h3>
+    <h3 data-i18n="reg.title">Register new sample</h3>
     <div id="reg-err" class="alert alert-err"></div>
     <div id="reg-ok"  class="alert alert-ok"></div>
     <div class="row2">
-      <div><label>Sample type *</label><input id="r-type" placeholder="blood, DNA, tissue…"></div>
-      <div><label>Source organism *</label><input id="r-org" placeholder="Homo sapiens"></div>
+      <div><label data-i18n="reg.type">Sample type *</label><input id="r-type" placeholder="blood, DNA, tissue…"></div>
+      <div><label data-i18n="reg.organism">Source organism *</label><input id="r-org" placeholder="Homo sapiens"></div>
     </div>
     <div class="row2">
-      <div><label>Collection date *</label><input id="r-date" type="date"></div>
+      <div><label data-i18n="reg.date">Collection date *</label><input id="r-date" type="date"></div>
       <div>
-        <label>Storage location *</label>
+        <label data-i18n="reg.location">Storage location *</label>
         <input id="r-loc" placeholder="e.g. Freezer-A1 (or use structured fields below)">
       </div>
     </div>
     <details style="margin-top:8px">
-      <summary style="font-size:12px;color:#2E75B6;cursor:pointer">+ Add structured location (optional)</summary>
+      <summary style="font-size:12px;color:#2E75B6;cursor:pointer" data-i18n="reg.structured">+ Add structured location (optional)</summary>
       <div class="row2" style="margin-top:8px">
-        <div><label>Building</label><input id="r-loc-building" placeholder="e.g. Building A"></div>
-        <div><label>Room</label><input id="r-loc-room" placeholder="e.g. Room 214"></div>
+        <div><label data-i18n="reg.building">Building</label><input id="r-loc-building" placeholder="e.g. Building A"></div>
+        <div><label data-i18n="reg.room">Room</label><input id="r-loc-room" placeholder="e.g. Room 214"></div>
       </div>
       <div class="row2" style="margin-top:8px">
-        <div><label>Equipment</label><input id="r-loc-equipment" placeholder="e.g. Freezer-A"></div>
-        <div><label>Position</label><input id="r-loc-position" placeholder="e.g. Shelf 2, Box 3, A1"></div>
+        <div><label data-i18n="reg.equipment">Equipment</label><input id="r-loc-equipment" placeholder="e.g. Freezer-A"></div>
+        <div><label data-i18n="reg.position">Position</label><input id="r-loc-position" placeholder="e.g. Shelf 2, Box 3, A1"></div>
       </div>
     </details>
     <div class="row2" style="margin-top:14px">
       <div>
-        <label>Expiry date <span style="font-size:11px;color:#888">(optional)</span></label>
+        <label><span data-i18n="reg.expiry">Expiry date</span> <span style="font-size:11px;color:#888">(optional)</span></label>
         <input id="r-expiry" type="date">
       </div>
       <div>
-        <label>Quantity <span style="font-size:11px;color:#888">(optional)</span></label>
+        <label><span data-i18n="reg.qty">Quantity</span> <span style="font-size:11px;color:#888">(optional)</span></label>
         <div style="display:flex;gap:6px">
           <input id="r-quantity" type="number" step="0.01" min="0" placeholder="e.g. 5.0" style="flex:1">
           <select id="r-quantity-unit" style="width:80px">
@@ -491,15 +523,15 @@ tr:last-child td{border-bottom:none} tr:hover td{background:#FAFCFF}
         </div>
       </div>
     </div>
-    <label style="margin-top:14px">Project <span style="font-size:11px;color:#888">(optional)</span></label>
+    <label style="margin-top:14px"><span data-i18n="reg.project">Project</span> <span style="font-size:11px;color:#888">(optional)</span></label>
     <select id="r-project"><option value="">— No project —</option></select>
-    <label style="margin-top:14px">Notes</label>
+    <label style="margin-top:14px" data-i18n="reg.notes">Notes</label>
     <textarea id="r-notes" placeholder="Optional…"></textarea>
-    <label style="margin-top:14px">Derived from sample <span style="font-size:11px;color:#888">(optional — if this sample was extracted from another)</span></label>
+    <label style="margin-top:14px"><span data-i18n="reg.parent">Derived from sample</span> <span style="font-size:11px;color:#888">(optional)</span></label>
     <input id="r-parent" placeholder="e.g. LT-2025-0001 (leave blank if original)">
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeRegister()">Cancel</button>
-      <button class="btn btn-primary" id="reg-btn" onclick="doRegister()">Register sample</button>
+      <button class="btn btn-secondary" onclick="closeRegister()"><span data-i18n="reg.cancel">Cancel</span></button>
+      <button class="btn btn-primary" id="reg-btn" onclick="doRegister()"><span data-i18n="reg.submit">Register sample</span></button>
     </div>
   </div>
 </div>
@@ -562,10 +594,134 @@ tr:last-child td{border-bottom:none} tr:hover td{background:#FAFCFF}
 
 <script>
 const $ = id => document.getElementById(id);
+
+// XSS protection — escape HTML special characters in any user-supplied string
+// Use esc() whenever inserting user data into innerHTML
+function esc(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 let currentUser = null;
 let detailId = null;
 
-const badge = s => `<span class="badge b-${s}">${s}</span>`;
+// ── I18N ──────────────────────────────────────────────────────────────────────
+const TRANSLATIONS = {
+  en: {
+    "nav.dashboard":"Dashboard","nav.samples":"Samples","nav.admin":"Admin",
+    "nav.projects":"Projects","nav.logout":"Logout",
+    "dash.total":"Total","dash.collected":"Collected","dash.processing":"Processing",
+    "dash.stored":"Stored","dash.thismonth":"This month","dash.recent":"Recent samples",
+    "dash.bytype":"By type","dash.byorganism":"By organism","dash.bystatus":"Status breakdown",
+    "dash.topusers":"Top contributors",
+    "samples.title":"Sample inventory","samples.register":"+ Register sample",
+    "samples.export":"↓ Export CSV","samples.search":"Search","samples.clear":"Clear",
+    "samples.type":"Type","samples.statusAll":"All statuses","samples.location":"Location",
+    "samples.datefrom":"Date from","samples.dateto":"Date to","samples.submittedby":"Submitted by",
+    "samples.project":"Project","samples.allprojects":"All projects","samples.reservedonly":"Reserved only",
+    "col.sampleid":"Sample ID","col.type":"Type","col.organism":"Organism","col.status":"Status",
+    "col.location":"Location","col.date":"Date","col.expiry":"Expiry","col.qty":"Qty",
+    "detail.info":"Sample information","detail.status":"Lifecycle status","detail.updateto":"Update to",
+    "detail.update":"Update status","detail.auditlog":"Audit log","detail.timestamp":"Timestamp",
+    "detail.from":"From","detail.to":"To","detail.by":"Changed by","detail.print":"🏷 Print label",
+    "detail.back":"← Back","detail.derivedfrom":"Derived from","detail.children":"Derived samples",
+    "detail.attachments":"Attachments","detail.reservation":"Reservation",
+    "reg.title":"Register new sample","reg.type":"Sample type *","reg.organism":"Source organism *",
+    "reg.date":"Collection date *","reg.location":"Storage location *",
+    "reg.structured":"+ Add structured location (optional)",
+    "reg.building":"Building","reg.room":"Room","reg.equipment":"Equipment","reg.position":"Position",
+    "reg.expiry":"Expiry date","reg.qty":"Quantity","reg.notes":"Notes",
+    "reg.parent":"Derived from sample","reg.project":"Project","reg.cancel":"Cancel","reg.submit":"Register sample",
+    "admin.title":"User management","admin.newuser":"+ New user",
+    "admin.fullaudit":"↓ Full audit log","admin.csvimport":"Bulk CSV import",
+    "admin.csvdrop":"Drop a CSV file here or click to choose",
+    "admin.activity":"Activity log","admin.email":"Email notifications",
+    "admin.testmail":"Send test email to myself",
+    "status.Collected":"Collected","status.Processing":"Processing","status.Stored":"Stored",
+    "status.Consumed":"Consumed","status.Discarded":"Discarded",
+    "bulk.changeto":"Change status to…","bulk.apply":"Apply","bulk.export":"↓ Export selected",
+    "bulk.labels":"🏷 Print labels","bulk.delete":"🗑 Delete selected","bulk.clear":"✕ Clear",
+    "login.subtitle":"Laboratory Sample Management System","login.username":"Username",
+    "login.password":"Password","login.button":"Log in","login.hint":"Demo accounts:",
+    "projects.title":"Projects","projects.close":"Close","projects.new":"New project",
+    "projects.name":"Name *","projects.desc":"Description","projects.create":"Create project",
+  },
+  de: {
+    "nav.dashboard":"Dashboard","nav.samples":"Proben","nav.admin":"Verwaltung",
+    "nav.projects":"Projekte","nav.logout":"Abmelden",
+    "dash.total":"Gesamt","dash.collected":"Gesammelt","dash.processing":"In Bearbeitung",
+    "dash.stored":"Gelagert","dash.thismonth":"Diesen Monat","dash.recent":"Neueste Proben",
+    "dash.bytype":"Nach Typ","dash.byorganism":"Nach Organismus","dash.bystatus":"Nach Status",
+    "dash.topusers":"Aktivste Nutzer",
+    "samples.title":"Probeninventar","samples.register":"+ Probe erfassen",
+    "samples.export":"↓ CSV exportieren","samples.search":"Suchen","samples.clear":"Zurücksetzen",
+    "samples.type":"Typ","samples.statusAll":"Alle Status","samples.location":"Lagerort",
+    "samples.datefrom":"Datum von","samples.dateto":"Datum bis","samples.submittedby":"Erfasst von",
+    "samples.project":"Projekt","samples.allprojects":"Alle Projekte","samples.reservedonly":"Nur reservierte",
+    "col.sampleid":"Proben-ID","col.type":"Typ","col.organism":"Organismus","col.status":"Status",
+    "col.location":"Lagerort","col.date":"Datum","col.expiry":"Ablauf","col.qty":"Menge",
+    "detail.info":"Probeninformationen","detail.status":"Lebenszyklus-Status",
+    "detail.updateto":"Aktualisieren auf","detail.update":"Status aktualisieren",
+    "detail.auditlog":"Änderungsprotokoll","detail.timestamp":"Zeitstempel",
+    "detail.from":"Von","detail.to":"Nach","detail.by":"Geändert von",
+    "detail.print":"🏷 Etikett drucken","detail.back":"← Zurück",
+    "detail.derivedfrom":"Abgeleitet von","detail.children":"Abgeleitete Proben",
+    "detail.attachments":"Anhänge","detail.reservation":"Reservierung",
+    "reg.title":"Neue Probe erfassen","reg.type":"Probentyp *","reg.organism":"Quellorganismus *",
+    "reg.date":"Entnahmedatum *","reg.location":"Lagerort *",
+    "reg.structured":"+ Strukturierten Lagerort hinzufügen (optional)",
+    "reg.building":"Gebäude","reg.room":"Raum","reg.equipment":"Gerät / Lager","reg.position":"Position",
+    "reg.expiry":"Ablaufdatum","reg.qty":"Menge","reg.notes":"Notizen",
+    "reg.parent":"Abgeleitet von Probe","reg.project":"Projekt","reg.cancel":"Abbrechen","reg.submit":"Probe erfassen",
+    "admin.title":"Benutzerverwaltung","admin.newuser":"+ Neuer Benutzer",
+    "admin.fullaudit":"↓ Vollständiges Protokoll","admin.csvimport":"CSV-Massenimport",
+    "admin.csvdrop":"CSV-Datei hier ablegen oder klicken",
+    "admin.activity":"Aktivitätsprotokoll","admin.email":"E-Mail-Benachrichtigungen",
+    "admin.testmail":"Test-E-Mail an mich senden",
+    "status.Collected":"Gesammelt","status.Processing":"In Bearbeitung","status.Stored":"Gelagert",
+    "status.Consumed":"Verbraucht","status.Discarded":"Entsorgt",
+    "bulk.changeto":"Status ändern auf…","bulk.apply":"Anwenden","bulk.export":"↓ Auswahl exportieren",
+    "bulk.labels":"🏷 Etiketten drucken","bulk.delete":"🗑 Auswahl löschen","bulk.clear":"✕ Aufheben",
+    "login.subtitle":"Labor-Proben-Management-System","login.username":"Benutzername",
+    "login.password":"Passwort","login.button":"Anmelden","login.hint":"Demo-Konten:",
+    "projects.title":"Projekte","projects.close":"Schliessen","projects.new":"Neues Projekt",
+    "projects.name":"Name *","projects.desc":"Beschreibung","projects.create":"Projekt erstellen",
+  }
+};
+
+let currentLang = localStorage.getItem('labtrack_lang') || 'en';
+function t(key) {
+  return (TRANSLATIONS[currentLang] && TRANSLATIONS[currentLang][key])
+      || TRANSLATIONS['en'][key]
+      || key;
+}
+function applyLanguage() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    const attr = el.getAttribute('data-i18n-attr');
+    if (attr) el.setAttribute(attr, t(key));
+    else el.textContent = t(key);
+  });
+  const btn = $('lang-toggle');
+  if (btn) btn.textContent = currentLang === 'en' ? '🇩🇪 DE' : '🇬🇧 EN';
+  document.documentElement.lang = currentLang;
+}
+function toggleLanguage() {
+  currentLang = currentLang === 'en' ? 'de' : 'en';
+  localStorage.setItem('labtrack_lang', currentLang);
+document.addEventListener('DOMContentLoaded', () => { try { applyLanguage(); } catch(e) {} });
+  // Re-render dynamic views so translated column headers/badges update
+  if (detailId && $('page-detail').classList.contains('active')) openDetail(detailId);
+  else if ($('page-samples').classList.contains('active')) loadSamples();
+  else if ($('page-dashboard').classList.contains('active')) loadDashboard();
+  else if ($('page-admin').classList.contains('active')) loadUsers();
+}
+
+const badge = s => `<span class="badge b-${s}">${t('status.' + s) || s}</span>`;
 
 function expiryBadge(dateStr) {
   if (!dateStr) return '';
@@ -577,9 +733,19 @@ function expiryBadge(dateStr) {
   return `<span style="background:#D1E7DD;color:#0F5132;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:bold">${dateStr}</span>`;
 }
 
+// Read CSRF token from cookie — sent with every mutating request
+function getCsrfToken() {
+  const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : '';
+}
+
 async function api(method, path, body) {
   const opts = { method, credentials: 'include', headers: {} };
   if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+  // Attach CSRF token on all mutating requests
+  if (['POST','PUT','PATCH','DELETE'].includes(method)) {
+    opts.headers['X-CSRF-Token'] = getCsrfToken();
+  }
   const r = await fetch(path, opts);
   const data = await r.json().catch(() => ({}));
   return { ok: r.ok, status: r.status, data };
@@ -729,10 +895,10 @@ async function loadDashboard() {
   $('dash-table').innerHTML = samples.length === 0
     ? '<tr><td colspan="6" class="empty">No samples yet.</td></tr>'
     : samples.slice(0, 10).map(s => `<tr>
-        <td style="font-family:monospace;font-size:13px;cursor:pointer;color:#2E75B6" onclick="openDetail('${s.sample_id}')">${s.sample_id}</td>
-        <td>${s.sample_type}</td><td>${s.source_organism}</td>
-        <td>${badge(s.status)}</td><td>${s.storage_location}</td>
-        <td style="color:#888;font-size:12px">${s.collection_date.split('T')[0]}</td>
+        <td style="font-family:monospace;font-size:13px;cursor:pointer;color:#2E75B6" onclick="openDetail('${esc(s.sample_id)}')">${esc(s.sample_id)}</td>
+        <td>${esc(s.sample_type)}</td><td>${esc(s.source_organism)}</td>
+        <td>${badge(s.status)}</td><td>${esc(s.storage_location)}</td>
+        <td style="color:#888;font-size:12px">${esc(s.collection_date.split('T')[0])}</td>
         <td>${s.expiry_date ? expiryBadge(s.expiry_date) : '<span style="color:#CCC">—</span>'}</td>
       </tr>`).join('');
 }
@@ -773,8 +939,8 @@ async function loadSamples() {
       return `<tr>
         <td><input type="checkbox" class="row-check" value="${s.sample_id}" onchange="updateBulkBar()"></td>
         <td style="font-family:monospace;font-size:13px">${s.sample_id}${reservedTag}</td>
-        <td>${s.sample_type}</td><td>${s.source_organism}</td>
-        <td>${badge(s.status)}</td><td>${s.storage_location}</td>
+        <td>${esc(s.sample_type)}</td><td>${esc(s.source_organism)}</td>
+        <td>${badge(s.status)}</td><td>${esc(s.storage_location)}</td>
         <td>${s.collection_date.split('T')[0]}</td>
         <td>${expiry}</td><td>${qty}</td>
         <td style="display:flex;gap:4px">
@@ -847,25 +1013,25 @@ async function openDetail(id) {
   window._currentSample = data;  // store for edit modal pre-fill
   $('detail-info').innerHTML = [
     ['Sample ID',    `<span style="font-family:monospace">${data.sample_id}</span>`],
-    ['Type',          data.sample_type],
-    ['Organism',      data.source_organism],
+    ['Type',          esc(data.sample_type)],
+    ['Organism',      esc(data.source_organism)],
     ['Collection',    data.collection_date.split('T')[0]],
     ['Location', (() => {
       const parts = [data.location_building, data.location_room,
                      data.location_equipment, data.location_position].filter(Boolean);
       const structured = parts.join(' › ');
       return structured
-        ? `${structured} <span style="color:#AAA;font-size:11px">(${data.storage_location})</span>`
+        ? `${structured} <span style="color:#AAA;font-size:11px">(${esc(data.storage_location)})</span>`
         : data.storage_location;
     })()],
-    ['Registered by', data.created_by_username || data.created_by_id],
+    ['Registered by', esc(data.created_by_username || String(data.created_by_id))],
     ['Expiry date', data.expiry_date
       ? `<span id="expiry-display">${expiryBadge(data.expiry_date)} ${data.expiry_date}</span>`
       : '<span style="color:#BBB">Not set</span>'],
     ['Quantity', data.quantity != null
       ? `${data.quantity}${data.quantity_unit ? ' ' + data.quantity_unit : ''}`
       : '<span style="color:#BBB">Not recorded</span>'],
-    ['Notes', `<span id="notes-display">${data.notes || '<span style="color:#BBB">—</span>'}</span>
+    ['Notes', `<span id="notes-display">${data.notes ? esc(data.notes) : '<span style="color:#BBB">—</span>'}</span>
       ${['researcher','technician','admin'].includes(currentUser?.role)
         ? ` <button class="btn btn-secondary btn-sm" style="margin-left:8px;font-size:11px" onclick="editNotes('${data.sample_id}','${(data.notes||'').replace(/'/g,"\\'")}')">Edit</button>`
         : ''}`],
@@ -899,10 +1065,10 @@ async function openDetail(id) {
     ? '<div class="empty">No status changes recorded yet.</div>'
     : [...log].reverse().map(e => `
       <div class="audit-row">
-        <span>${e.timestamp.replace('T',' ').split('.')[0]}</span>
+        <span>${esc(e.timestamp.replace('T',' ').split('.')[0])}</span>
         <span>${badge(e.old_status)}</span>
         <span>${badge(e.new_status)}</span>
-        <span style="color:#555">${e.changed_by_username || e.changed_by_id}</span>
+        <span style="color:#555">${esc(e.changed_by_username || String(e.changed_by_id))}</span>
       </div>`).join('');
 
   if (data.parent_sample_id) {
@@ -999,7 +1165,7 @@ function renderUsers() {
       ? '<span style="color:#AAA;font-size:12px">you</span>'
       : `<button class="btn btn-sm" style="${toggleStyle}" onclick="doToggleActive(${u.user_id})">${toggleLabel}</button>`;
     return `<tr>
-      <td><b>${u.username}</b></td><td>${u.email}</td>
+      <td><b>${esc(u.username)}</b></td><td>${esc(u.email)}</td>
       <td>${badge(u.role)}</td>
       <td style="color:${u.is_active?'#1D9E75':'#C00'};font-weight:bold">${u.is_active?'Active':'Inactive'}</td>
       <td style="color:#888;font-size:12px">${u.created_at.split('T')[0]}</td>
@@ -1336,7 +1502,7 @@ async function doBulkLabels() {
   if (ids.length === 0) return;
   const resp = await fetch('/api/samples/bulk-labels', {
     method: 'POST', credentials: 'include',
-    headers: {'Content-Type': 'application/json'},
+    headers: {'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken()},
     body: JSON.stringify({sample_ids: ids})
   });
   if (!resp.ok) { alert('Label generation failed.'); return; }
@@ -1593,6 +1759,15 @@ function exportActivityLog() {
   a.click();
 }
 
+// ── EMAIL TEST ────────────────────────────────────────────────────────────────
+async function sendTestEmail() {
+  $('email-test-result').textContent = 'Sending…';
+  $('email-test-result').style.color = '#888';
+  const { ok, data } = await api('POST', '/api/users/send-test-email', {});
+  $('email-test-result').textContent = ok ? `✓ ${data.message}` : `✗ ${data.error}`;
+  $('email-test-result').style.color = ok ? '#1D9E75' : '#842029';
+}
+
 // ── ALERT HELPERS ─────────────────────────────────────────────────────────────
 function showAlert(id, msg) { const el=$(id); el.textContent=msg; el.className='alert alert-err show'; }
 function hideAlert(id)       { const el=$(id); el.className='alert alert-err'; }
@@ -1603,6 +1778,7 @@ function hideAlertEl(id)     { const el=$(id); el.className='alert'; }
 document.addEventListener('DOMContentLoaded', () => {
   $('pw').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
   $('un').addEventListener('keydown', e => { if (e.key === 'Enter') $('pw').focus(); });
+  applyLanguage();
 });
 </script>
 </body>

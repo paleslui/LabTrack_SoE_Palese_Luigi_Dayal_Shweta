@@ -3,7 +3,7 @@ app/routes/user_routes.py — Admin-only user management, wired to UserRepositor
 """
 
 import bcrypt
-from flask import Blueprint, request, jsonify, session, g, Response
+from flask import Blueprint, request, jsonify, session, g, Response, current_app
 from .auth_routes import login_required, require_role
 from database.db import log_activity
 
@@ -146,6 +146,32 @@ def get_activity_log():
             "ip":        r.ip_address,
             "timestamp": str(r.timestamp)[:19] if r.timestamp else None,
         } for r in rows]}), 200
+
+
+@user_bp.post("/send-test-email")
+@login_required
+@require_role("admin")
+def send_test_email():
+    """POST /api/users/send-test-email — verify SMTP config by emailing the caller."""
+    from database.db import send_email
+    from repositories.user_repository import UserRepository
+    user = UserRepository().get_by_id(g.current_user_id)
+    if not user or not user.get_email():
+        return jsonify({"error": "No email address on your account"}), 400
+    sent = send_email(
+        current_app.config,
+        user.get_email(),
+        "[LabTrack] Test email",
+        f"Hello {user.get_username()},\n\n"
+        f"This is a test email from LabTrack.\n\n"
+        f"If you received this, SMTP is configured correctly."
+    )
+    if sent:
+        return jsonify({"message": f"Test email sent to {user.get_email()}"}), 200
+    return jsonify({
+        "error": "Email sending is disabled or failed. "
+                 "Check MAIL_ENABLED and SMTP settings in app/app.py."
+    }), 400
 
 
 @user_bp.get("/activity-log/export")

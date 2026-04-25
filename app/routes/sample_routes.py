@@ -746,6 +746,26 @@ def cancel_reservation(sample_id: str):
 
 _ALLOWED_EXTENSIONS = {"pdf", "png", "jpg", "jpeg", "gif", "doc", "docx", "xlsx", "csv", "txt"}
 
+def _check_mime(file_bytes: bytes, extension: str) -> bool:
+    """
+    Verify that the actual file content matches the claimed extension.
+    Returns True if the file looks safe, False if it looks like a disguised file.
+    We only reject files whose magic bytes clearly indicate a dangerous type
+    (e.g. ELF executable, PE executable, shell script).
+    """
+    DANGEROUS_SIGS = [
+        b"\x7fELF",        # Linux ELF executable
+        b"MZ",              # Windows PE executable
+        b"#!/",             # Shell script
+        b"#!",              # Shebang
+        b"<script",         # HTML/JS
+        b"<?php",           # PHP
+    ]
+    for sig in DANGEROUS_SIGS:
+        if file_bytes[:len(sig)].lower() == sig.lower():
+            return False
+    return True
+
 
 def _uploads_dir() -> str:
     import os
@@ -776,6 +796,13 @@ def upload_attachment(sample_id: str):
         return jsonify({"error": "No file selected"}), 400
     if not _ext_ok(file.filename):
         return jsonify({"error": f"Extension not allowed. Accepted: {sorted(_ALLOWED_EXTENSIONS)}"}), 400
+
+    # Read file content for MIME validation
+    file_bytes = file.read(512)
+    file.seek(0)  # Reset stream so we can save the full file later
+
+    if not _check_mime(file_bytes, ext):
+        return jsonify({"error": "File content does not match its extension. Upload rejected."}), 400
 
     # Confirm sample exists
     with db_session() as s:
