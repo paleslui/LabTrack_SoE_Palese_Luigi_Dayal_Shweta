@@ -1,160 +1,236 @@
 # LabTrack — Laboratory Sample Management System
 
 > **Course:** Software Engineering and Design Patterns — ZHAW MSc Life Sciences  
-> **Stack:** Python 3.11+ · Flask · SQLite / SQLAlchemy · pytest  
-> **Stages completed:** 1 – 10 (100 points)
+> **Team:** Palese Luigi · Dayal Shweta  
+> **Stack:** Python 3.11+ · Flask · SQLite/SQLAlchemy · pytest  
+> **Stages completed:** 1–10 (100 points) + post-submission enhancements (v11.0)  
+> **GitHub:** https://github.com/paleslui/LabTrack_SoE_Palese_Luigi_Dayal_Shweta
 
 ---
 
-## Project Overview
+## What is LabTrack?
 
-LabTrack is a web-based system for registering and tracking biological laboratory samples through their full lifecycle — from collection through processing, storage, and final disposal or consumption. It replaces error-prone spreadsheet tracking with a structured, role-aware, database-backed application.
+LabTrack is a browser-based Laboratory Information Management System (LIMS) for tracking biological samples — blood, tissue, DNA, RNA, plasma — through their full lifecycle from collection to consumption or disposal.
+
+It replaces spreadsheets and handwritten logs with a structured, role-aware, database-backed application that enforces lifecycle rules and maintains an immutable audit trail.
+
+---
+
+## Quick Start
+
+```bash
+# 1. Clone and install
+git clone https://github.com/paleslui/LabTrack_SoE_Palese_Luigi_Dayal_Shweta.git
+cd LabTrack_SoE_Palese_Luigi_Dayal_Shweta
+pip3 install -r requirements.txt
+
+# 2. Configure environment
+cp .env.example .env          # edit SECRET_KEY and optional SMTP settings
+
+# 3. Run
+python3 run.py                # → http://localhost:5001
+
+# 4. Run with HTTPS (public URL via Cloudflare tunnel)
+./start_https.sh              # → https://xxx.trycloudflare.com
+```
+
+**Default accounts** (seeded automatically on first run):
+
+| Username | Password | Role |
+|---|---|---|
+| alice | alice123 | Researcher |
+| bob | bob123 | Lab Technician |
+| carol | carol123 | Administrator |
+| dave | dave123 | Viewer |
+
+---
+
+## Architecture
+
+LabTrack implements a **Three-Tier Layered Architecture** combined with a **Client-Server** topology:
+
+```
+Browser (HTML/CSS/JS)
+        │  HTTP/HTTPS
+        ▼
+┌─────────────────────────────────┐
+│  Presentation Layer             │  app/routes/  (Flask Blueprints)
+│  auth_routes · sample_routes   │
+│  user_routes · project_routes  │
+├─────────────────────────────────┤
+│  Application Layer              │  services/ · patterns/
+│  SampleService · UserFactory   │
+│  Strategy · Adapter · Singleton│
+├─────────────────────────────────┤
+│  Data Layer                     │  repositories/ · database/
+│  SampleRepository               │
+│  UserRepository                 │
+└─────────────────────────────────┘
+        │  SQLAlchemy ORM
+        ▼
+   SQLite (labtrack.db)
+```
+
+---
+
+## Design Patterns (Stage 5)
+
+| Pattern | Category | File | Purpose |
+|---|---|---|---|
+| **Factory** | Creational | `patterns/user_factory.py` | Instantiates correct User subclass from role string |
+| **Singleton** | Creational | `patterns/singleton_meta.py` | Ensures one shared repository instance |
+| **Strategy** | Behavioural | `patterns/search_strategy.py` | Pluggable search filters (type, status, location, date, user) |
+| **Adapter** | Structural | `patterns/csv_adapter.py` | Translates CSV rows into SampleService interface |
 
 ---
 
 ## Repository Structure
 
 ```
-labtrack/
-├── app/                         # Stage 6 — Presentation layer (Flask)
-│   ├── app.py                   # Application factory + Blueprint registration
-│   └── routes/
-│       ├── auth_routes.py       # POST /api/auth/login|logout, GET /me
-│       ├── sample_routes.py     # Full CRUD + CSV import/export
-│       └── user_routes.py       # Admin-only user management
+LabTrack/
+├── app/
+│   ├── app.py                   # Flask factory — security headers, CSRF, rate limiting
+│   ├── routes/
+│   │   ├── auth_routes.py       # Login/logout, account lockout, profile editing
+│   │   ├── sample_routes.py     # Full sample CRUD + bulk ops + labels + attachments
+│   │   ├── user_routes.py       # User management + activity log
+│   │   └── project_routes.py   # Project/experiment grouping
+│   ├── static/uploads/          # File attachments (per sample_id folder)
+│   └── templates/
+│       └── index.html           # Single-file frontend (vanilla JS, DE/EN toggle)
 │
-├── database/                    # Stage 7 — Data layer (SQLAlchemy ORM)
-│   ├── models.py                # UserModel, SampleModel, AuditEntryModel
-│   └── db.py                    # Engine, session factory, init_db()
+├── database/
+│   ├── models.py                # 6 SQLAlchemy ORM tables
+│   └── db.py                    # Engine, sessions, migrations, seeding, email helper
 │
-├── models/                      # Stage 3 — Domain model classes
-│   ├── user.py                  # User (abstract) + 4 role subclasses
-│   └── sample.py                # Sample + AuditEntry + SampleStatus enum
+├── models/
+│   ├── user.py                  # User (ABC) + Researcher, LabTechnician, Administrator, Viewer
+│   └── sample.py                # Sample + AuditEntry + SampleStatus + ALLOWED_TRANSITIONS
 │
-├── patterns/                    # Stage 5 — Design patterns
-│   ├── user_factory.py          # Factory: role string → User subclass
-│   ├── singleton_meta.py        # Singleton metaclass + wired repositories
-│   ├── search_strategy.py       # Strategy: 5 filter algorithms + context
-│   └── csv_adapter.py           # Adapter: CSV → SampleService interface
+├── patterns/
+│   ├── user_factory.py
+│   ├── singleton_meta.py
+│   ├── search_strategy.py
+│   └── csv_adapter.py
 │
-├── repositories/                # Stage 3 — Data access objects
-│   ├── sample_repository.py     # CRUD + filter queries for Sample
-│   └── user_repository.py       # CRUD + lookup for User
+├── repositories/
+│   ├── sample_repository.py     # SQLAlchemy-backed CRUD for Sample
+│   └── user_repository.py       # SQLAlchemy-backed CRUD for User
 │
-├── services/                    # Stage 3 — Application layer
-│   └── sample_service.py        # register_sample, update_status, list_samples
+├── services/
+│   └── sample_service.py        # Business logic: register_sample, update_sample_status
 │
-├── tests/                       # Stages 3, 5, 10 — Test suite (85 tests)
-│   ├── conftest.py              # Shared fixtures (clients, DB reset)
-│   ├── test_models.py           # 13 unit tests (Stage 3)
-│   ├── test_patterns.py         # 37 unit tests (Stage 5)
-│   ├── test_routes.py           # 30 integration tests (Stage 10)
-│   └── test_system.py           # 5 system scenario tests (Stage 10)
+├── tests/
+│   ├── conftest.py              # In-memory SQLite fixtures, 4 role clients
+│   ├── test_models.py           # Domain model unit tests
+│   ├── test_patterns.py         # Pattern unit tests
+│   ├── test_routes.py           # Integration tests (API endpoints)
+│   └── test_system.py           # System scenario tests
 │
-├── ML_EVALUATION.md             # Stage 8 — ML decision log
+├── docs/
+│   ├── USER_GUIDE.md            # End-user guide (lab staff)
+│   └── DEVELOPER.md             # Developer setup, testing, deployment
+│
+├── ML_EVALUATION.md             # Stage 8 — ML integration assessment
+├── start_https.sh               # Launch Flask + Cloudflare HTTPS tunnel
+├── run.py                       # Entry point (port 5001)
 ├── requirements.txt
-├── .gitignore
-└── README.md
+├── .env.example                 # Environment variable template
+└── .gitignore
 ```
 
 ---
 
-## Architecture
+## Features
 
-**Combined Layered + Client-Server** (Stage 6):
+### Core (Stages 1–10)
+- **RBAC** — 4 roles: Researcher, Lab Technician, Administrator, Viewer
+- **Sample lifecycle** — Collected → Processing → Stored → Consumed/Discarded (all transitions reversible)
+- **Immutable audit log** — every status change recorded with user and timestamp
+- **Multi-field search** — filter by type, status, location, date range, submitter, project
+- **CSV import/export** — bulk import with duplicate detection and per-row error reporting
+- **4 UML diagrams** — use case, class, sequence, activity
 
-```
-Browser ──HTTP/HTTPS──► Flask server
-                         ├── Presentation layer  (app/routes/)
-                         ├── Application layer   (services/, patterns/)
-                         └── Data layer          (repositories/, database/)
-                                  │
-                                  └──SQL/ORM──► SQLite DB
-```
+### Post-submission enhancements (v11.0)
+- **Expiry tracking** — colour-coded alerts (red/amber/green) on list and dashboard
+- **Quantity tracking** — volume/mass/count with units
+- **4-level location hierarchy** — building → room → equipment → position
+- **Sample lineage** — parent/child relationships between samples
+- **QR code labels** — encode a live URL; scanned label always shows current state
+- **Bulk operations** — status update, delete, CSV export, label printing on selection
+- **Project grouping** — tag samples to experiments or studies
+- **File attachments** — PDFs, images, documents per sample
+- **Sample reservation** — soft lock with expiry and note
+- **User activity log** — system-level audit (admin only)
+- **German/English UI toggle** — localStorage persistent
+- **Email notifications** — expiry alerts via SMTP (configurable)
+- **Full sample editing** — all fields except sample_id editable after registration
+
+### Security (NFR-14 to NFR-20)
+- Account lockout after 5 failed logins (15-minute lock)
+- CSRF protection (double-submit cookie, `X-CSRF-Token` header)
+- XSS escaping on all user-supplied DOM insertions
+- MIME type validation on file uploads
+- Security headers on every response (CSP, X-Frame-Options, etc.)
+- Secret key loaded from `.env` — never hardcoded
+- HTTPS via Cloudflare Tunnel (`./start_https.sh`)
 
 ---
 
-## Design Patterns Applied (Stage 5)
+## Test Suite
 
-| Pattern | Category | Applied to |
+```bash
+python3 -m pytest tests/ -v
+```
+
+| Layer | File | Count |
 |---|---|---|
-| Factory | Creational | `UserFactory` — role string → correct User subclass |
-| Singleton | Creational | `SampleRepository`, `UserRepository` — single shared instance |
-| Strategy | Behavioral | `SearchStrategy` hierarchy — swappable filter algorithms |
-| Adapter | Structural | `CsvImportAdapter` — CSV format → SampleService interface |
+| Unit | test_models.py + test_patterns.py | 50 tests |
+| Integration | test_routes.py | 30 tests |
+| System | test_system.py | 38 tests |
+| **Total** | | **118 tests** |
+
+All tests use an in-memory SQLite database — no side effects on `labtrack.db`.
 
 ---
 
-## Database Schema (Stage 7)
-
-Three tables: **USER** → **SAMPLE** (1:M) and **SAMPLE** → **AUDIT_ENTRY** (1:M), with **USER** → **AUDIT_ENTRY** (1:M) for change attribution.
-
----
-
-## Running the Application
-
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Start the development server
-python app/app.py
-# → http://localhost:5001
-```
-
----
-
-## Running the Tests
-
-```bash
-# Run all 85 tests
-pytest tests/ -v
-
-# With coverage report
-pytest tests/ -v --cov=app --cov=models --cov=patterns --cov=services --cov-report=term-missing
-```
-
-**Test breakdown:**
-- 13 unit tests — domain model classes (`test_models.py`)
-- 37 unit tests — design pattern implementations (`test_patterns.py`)
-- 30 integration tests — Flask API endpoints (`test_routes.py`)
-- 5 system scenarios — end-to-end workflows (`test_system.py`)
-
----
-
-## API Endpoints
+## API Summary
 
 | Method | Endpoint | Description | Auth |
 |---|---|---|---|
-| POST | `/api/auth/login` | Authenticate, start session | None |
-| POST | `/api/auth/logout` | Destroy session | Session |
-| GET | `/api/auth/me` | Current user profile | Session |
-| GET | `/api/samples/` | List samples (filterable) | Session |
-| POST | `/api/samples/` | Register new sample | Researcher/Admin |
-| GET | `/api/samples/<id>` | Sample detail + audit log | Session |
-| PUT | `/api/samples/<id>/status` | Update lifecycle status | Researcher/Tech/Admin |
-| POST | `/api/samples/import` | Bulk CSV import | Researcher/Admin |
-| GET | `/api/samples/export` | Export as CSV | Session |
-| GET | `/api/users/` | List users | Admin |
-| POST | `/api/users/` | Create user account | Admin |
-| PUT | `/api/users/<id>` | Update user | Admin |
-| DELETE | `/api/users/<id>` | Deactivate user | Admin |
+| POST | /api/auth/login | Authenticate | None |
+| GET | /api/samples/ | List samples (filterable, paginated) | Session |
+| POST | /api/samples/ | Register new sample | Researcher/Admin |
+| GET | /api/samples/`<id>` | Sample detail + audit log | Session |
+| PUT | /api/samples/`<id>` | Edit sample fields | Res/Tech/Admin |
+| PUT | /api/samples/`<id>`/status | Update lifecycle status | Res/Tech/Admin |
+| DELETE | /api/samples/`<id>` | Delete sample | Res/Tech/Admin |
+| GET | /api/samples/`<id>`/label | Download QR label PNG | Session |
+| GET | /view/`<id>` | Public live sample view (QR scan target) | None |
+| GET | /api/projects/ | List projects | Session |
+| GET | /api/users/activity-log | System activity log | Admin |
+
+Full API: see `docs/DEVELOPER.md`
 
 ---
 
-## ML Decision (Stage 8)
+## Course Stage Summary
 
-ML integration was evaluated and **not included**. See `ML_EVALUATION.md` for the full assessment of 5 candidate applications and the 5-point justification.
-
----
-
-## Version History
-
-| Tag | Stage | Description |
+| Stage | Topic | Points |
 |---|---|---|
-| v1.0 | Stage 1 | Project definition |
-| v3.0 | Stage 3 | Core classes + unit tests |
-| v5.0 | Stage 5 | Design patterns |
-| v6.0 | Stage 6 | Flask architecture |
-| v7.0 | Stage 7 | SQLAlchemy models |
-| v10.0 | Stage 10 | QA — final submission |
+| 1 | Project definition, target users, tech stack | 5 |
+| 2 | FR-01–FR-19, NFR-01–NFR-13 | 10 |
+| 3 | Core classes — models, repositories, services | 10 |
+| 4 | UML diagrams (use case, class, sequence, activity) | 10 |
+| 5 | Design patterns (Factory, Singleton, Strategy, Adapter) | 10 |
+| 6 | Architecture (layered + client-server, REST API) | 15 |
+| 7 | Data storage (SQLAlchemy, ER diagram) | 10 |
+| 8 | ML evaluation (5 candidates rejected) | 10 |
+| 9 | UI design (wireframes, navigation flow) | 10 |
+| 10 | Quality assurance (118 tests, version control) | 10 |
+| **Total** | | **100** |
+
+---
+
+> See `docs/USER_GUIDE.md` for end-user instructions.  
+> See `docs/DEVELOPER.md` for setup, testing, and deployment details.
