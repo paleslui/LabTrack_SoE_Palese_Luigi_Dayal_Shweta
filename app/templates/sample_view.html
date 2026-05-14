@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="refresh" content="60">
+<title>{{ sample_id }} - LabTrack</title>
+<style>
+*{{box-sizing:border-box;margin:0;padding:0}}
+body{{font-family:Arial,sans-serif;background:#F0F2F5;color:#333;padding:16px;max-width:480px;margin:0 auto}}
+.header{{background:#1F3864;color:#fff;padding:14px 16px;border-radius:8px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}}
+.header h1{{font-size:16px;font-weight:bold;font-family:monospace}}
+.header .sub{{font-size:11px;color:#B0C4DE;margin-top:2px}}
+.card{{background:#fff;border-radius:8px;border:1px solid #DDD;padding:16px;margin-bottom:12px}}
+.card-title{{font-size:11px;font-weight:bold;color:#1F3864;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px}}
+.row{{display:flex;padding:6px 0;border-bottom:1px solid #F5F5F5;font-size:14px}}
+.row:last-child{{border-bottom:none}}
+.lbl{{color:#888;width:100px;flex-shrink:0;font-size:13px}}
+.val{{flex:1;font-weight:500}}
+.badge{{display:inline-block;padding:5px 14px;border-radius:14px;font-size:14px;font-weight:bold;color:#fff;background:{{ status_color }}}}
+table{{width:100%;border-collapse:collapse;font-size:12px}}
+th{{background:#F8F8F8;text-align:left;padding:6px 8px;color:#666;border-bottom:1px solid #EEE}}
+td{{padding:6px 8px;border-bottom:1px solid #F5F5F5}}
+.footer{{text-align:center;font-size:11px;color:#BBB;margin-top:12px;line-height:1.8}}
+</style>
+</head>
+<body>
+<div class="header">
+  <div>
+    <div class="sub">LabTrack - scanned label</div>
+    <h1>{{ sample_id }}</h1>
+  </div>
+  <span class="badge">{{ status_value }}</span>
+</div>
+<div class="card">
+  <div class="card-title">Sample information</div>
+  {{ rows_html | safe }}
+</div>
+{{ audit_section | safe }}
+<div class="footer">
+  Live data - auto-refreshes every 60s<br>
+  Last updated: {{ updated_at }} UTC<br>
+  {{ host }}
+</div>
+</body>
+</html>

@@ -57,70 +57,74 @@ def create_app(config: dict | None = None) -> Flask:
         seed_demo_samples()
 
         # ── Background scheduler: daily expiry check / email notifications ─
-        from flask_apscheduler import APScheduler
-        from datetime import date
+        try:
+            from flask_apscheduler import APScheduler
+            from datetime import date
 
-        app.config["SCHEDULER_API_ENABLED"] = False
-        scheduler = APScheduler()
-        scheduler.init_app(app)
+            app.config["SCHEDULER_API_ENABLED"] = False
+            scheduler = APScheduler()
+            scheduler.init_app(app)
 
-        @scheduler.task("interval", id="expiry_check", hours=24, misfire_grace_time=3600)
-        def check_expiring_samples():
-            with app.app_context():
-                from repositories.sample_repository import SampleRepository
-                from repositories.user_repository import UserRepository
-                from database.db import send_email
-                repo      = SampleRepository()
-                user_repo = UserRepository()
-                today     = date.today()
-                warn_days = app.config.get("MAIL_EXPIRY_DAYS_WARNING", 7)
+            @scheduler.task("interval", id="expiry_check", hours=24, misfire_grace_time=3600)
+            def check_expiring_samples():
+                with app.app_context():
+                    from repositories.sample_repository import SampleRepository
+                    from repositories.user_repository import UserRepository
+                    from database.db import send_email
+                    repo      = SampleRepository()
+                    user_repo = UserRepository()
+                    today     = date.today()
+                    warn_days = app.config.get("MAIL_EXPIRY_DAYS_WARNING", 7)
 
-                for sample in repo.get_all():
-                    exp = sample.get_expiry_date()
-                    if not exp:
-                        continue
-                    days_left = (exp - today).days
-                    if days_left not in (warn_days, 0):
-                        continue
-                    if sample.get_status().value in ("Consumed", "Discarded"):
-                        continue
-                    creator = user_repo.get_by_id(sample.get_created_by_id())
-                    if not creator or not creator.get_email():
-                        continue
+                    for sample in repo.get_all():
+                        exp = sample.get_expiry_date()
+                        if not exp:
+                            continue
+                        days_left = (exp - today).days
+                        if days_left not in (warn_days, 0):
+                            continue
+                        if sample.get_status().value in ("Consumed", "Discarded"):
+                            continue
+                        creator = user_repo.get_by_id(sample.get_created_by_id())
+                        if not creator or not creator.get_email():
+                            continue
 
-                    if days_left == 0:
-                        subject = f"[LabTrack] Sample {sample.get_sample_id()} has expired today"
-                        body = (
-                            f"Dear {creator.get_username()},\n\n"
-                            f"Sample {sample.get_sample_id()} ({sample.get_sample_type()} — "
-                            f"{sample.get_source_organism()}) has reached its expiry date today "
-                            f"({exp}).\n\n"
-                            f"Current status: {sample.get_status().value}\n"
-                            f"Storage location: {sample.get_storage_location()}\n\n"
-                            f"Please review this sample and update its status accordingly.\n\n"
-                            f"LabTrack Laboratory Sample Management\n"
-                            f"http://localhost:5001/view/{sample.get_sample_id()}"
-                        )
-                    else:
-                        subject = f"[LabTrack] Sample {sample.get_sample_id()} expires in {days_left} days"
-                        body = (
-                            f"Dear {creator.get_username()},\n\n"
-                            f"Sample {sample.get_sample_id()} ({sample.get_sample_type()} — "
-                            f"{sample.get_source_organism()}) will expire in {days_left} days "
-                            f"(on {exp}).\n\n"
-                            f"Current status: {sample.get_status().value}\n"
-                            f"Storage location: {sample.get_storage_location()}\n\n"
-                            f"Please ensure this sample is used or properly disposed of before expiry.\n\n"
-                            f"LabTrack Laboratory Sample Management\n"
-                            f"http://localhost:5001/view/{sample.get_sample_id()}"
-                        )
+                        if days_left == 0:
+                            subject = f"[LabTrack] Sample {sample.get_sample_id()} has expired today"
+                            body = (
+                                f"Dear {creator.get_username()},\n\n"
+                                f"Sample {sample.get_sample_id()} ({sample.get_sample_type()} — "
+                                f"{sample.get_source_organism()}) has reached its expiry date today "
+                                f"({exp}).\n\n"
+                                f"Current status: {sample.get_status().value}\n"
+                                f"Storage location: {sample.get_storage_location()}\n\n"
+                                f"Please review this sample and update its status accordingly.\n\n"
+                                f"LabTrack Laboratory Sample Management\n"
+                                f"http://localhost:5001/view/{sample.get_sample_id()}"
+                            )
+                        else:
+                            subject = f"[LabTrack] Sample {sample.get_sample_id()} expires in {days_left} days"
+                            body = (
+                                f"Dear {creator.get_username()},\n\n"
+                                f"Sample {sample.get_sample_id()} ({sample.get_sample_type()} — "
+                                f"{sample.get_source_organism()}) will expire in {days_left} days "
+                                f"(on {exp}).\n\n"
+                                f"Current status: {sample.get_status().value}\n"
+                                f"Storage location: {sample.get_storage_location()}\n\n"
+                                f"Please ensure this sample is used or properly disposed of before expiry.\n\n"
+                                f"LabTrack Laboratory Sample Management\n"
+                                f"http://localhost:5001/view/{sample.get_sample_id()}"
+                            )
 
-                    sent = send_email(app.config, creator.get_email(), subject, body)
-                    if sent:
-                        print(f"[LabTrack] Expiry notification sent for "
-                              f"{sample.get_sample_id()} to {creator.get_email()}")
+                        sent = send_email(app.config, creator.get_email(), subject, body)
+                        if sent:
+                            print(f"[LabTrack] Expiry notification sent for "
+                                  f"{sample.get_sample_id()} to {creator.get_email()}")
 
-        scheduler.start()
+            scheduler.start()
+        except ImportError:
+            print("[LabTrack] Warning: flask_apscheduler not installed. Background expiry checks are disabled.")
+            pass
 
     # ── Register Blueprints ───────────────────────────────────────────────
     app.register_blueprint(auth_bp,    url_prefix="/api/auth")
