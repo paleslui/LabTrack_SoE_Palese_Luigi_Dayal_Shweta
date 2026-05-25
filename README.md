@@ -1,18 +1,17 @@
-# LabTrack — Laboratory Sample Management System
+# LabTrack: Laboratory Sample Management System
 
-> **Course:** Software Engineering and Design Patterns — ZHAW MSc Life Sciences  
-> **Team:** Palese Luigi · Dayal Shweta  
-> **Stack:** Python 3.11+ · Flask · SQLite/SQLAlchemy · pytest  
-> **Stages completed:** 1–10 (100 points) + post-submission enhancements (v11.0)  
-> **GitHub:** https://github.com/paleslui/LabTrack_SoE_Palese_Luigi_Dayal_Shweta
+> **Course:** Software Engineering and Design Patterns, ACLS  
+> **Team:** Palese Luigi, Dayal Shweta  
+> **Stack:** Python 3.11+, Flask, SQLite/SQLAlchemy, pytest  
+
 
 ---
 
 ## What is LabTrack?
 
-LabTrack is a browser-based Laboratory Information Management System (LIMS) for tracking biological samples — blood, tissue, DNA, RNA, plasma — through their full lifecycle from collection to consumption or disposal.
+LabTrack is a browser-based Laboratory Information Management System (LIMS) for tracking biological samples (blood, tissue, DNA, RNA, plasma) through their full lifecycle from collection to consumption or disposal.
 
-It replaces spreadsheets and handwritten logs with a structured, role-aware, database-backed application that enforces lifecycle rules and maintains an immutable audit trail.
+It replaces spreadsheets and handwritten logs with a structured, role-aware, database-backed application that maintains an immutable audit trail.
 
 ---
 
@@ -89,7 +88,7 @@ Browser (HTML/CSS/JS)
 ```
 LabTrack/
 ├── app/
-│   ├── app.py                   # Flask factory — security headers, CSRF, rate limiting
+│   ├── app.py                   # Flask factory: security headers, CSRF, rate limiting
 │   ├── routes/
 │   │   ├── auth_routes.py       # Login/logout, account lockout, profile editing
 │   │   ├── sample_routes.py     # Full sample CRUD + bulk ops + labels + attachments
@@ -131,7 +130,7 @@ LabTrack/
 │   ├── USER_GUIDE.md            # End-user guide (lab staff)
 │   └── DEVELOPER.md             # Developer setup, testing, deployment
 │
-├── ML_EVALUATION.md             # Stage 8 — ML integration assessment
+├── ML_EVALUATION.md             # Stage 8: ML integration assessment
 ├── start_https.sh               # Launch Flask + Cloudflare HTTPS tunnel
 ├── run.py                       # Entry point (port 5001)
 ├── requirements.txt
@@ -144,27 +143,27 @@ LabTrack/
 ## Features
 
 ### Core (Stages 1–10)
-- **RBAC** — 4 roles: Researcher, Lab Technician, Administrator, Viewer
-- **Sample lifecycle** — Collected → Processing → Stored → Consumed/Discarded (all transitions reversible)
-- **Immutable audit log** — every status change recorded with user and timestamp
-- **Multi-field search** — filter by type, status, location, date range, submitter, project
-- **CSV import/export** — bulk import with duplicate detection and per-row error reporting
-- **4 UML diagrams** — use case, class, sequence, activity
+- **RBAC**: 4 roles: Researcher, Lab Technician, Administrator, Viewer
+- **Sample lifecycle**: Collected → Processing → Stored → Consumed/Discarded (all transitions reversible)
+- **Immutable audit log**: every status change recorded with user and timestamp
+- **Multi-field search**: filter by type, status, location, date range, submitter, project
+- **CSV import/export**: bulk import with duplicate detection and per-row error reporting
+- **4 UML diagrams**: use case, class, sequence, activity
 
-### Post-submission enhancements (v11.0)
-- **Expiry tracking** — colour-coded alerts (red/amber/green) on list and dashboard
-- **Quantity tracking** — volume/mass/count with units
-- **4-level location hierarchy** — building → room → equipment → position
-- **Sample lineage** — parent/child relationships between samples
-- **QR code labels** — encode a live URL; scanned label always shows current state
-- **Bulk operations** — status update, delete, CSV export, label printing on selection
-- **Project grouping** — tag samples to experiments or studies
-- **File attachments** — PDFs, images, documents per sample
-- **Sample reservation** — soft lock with expiry and note
-- **User activity log** — system-level audit (admin only)
-- **German/English UI toggle** — localStorage persistent
-- **Email notifications** — expiry alerts via SMTP (configurable)
-- **Full sample editing** — all fields except sample_id editable after registration
+### Enhancements (v11.0)
+- **Expiry tracking**: colour-coded alerts (red/amber/green) on list and dashboard
+- **Quantity tracking**: volume/mass/count with units
+- **4-level location hierarchy**: building → room → equipment → position
+- **Sample lineage**: parent/child relationships between samples
+- **QR code labels**: encode a live URL; scanned label always shows current state
+- **Bulk operations**: status update, delete, CSV export, label printing on selection
+- **Project grouping**: tag samples to experiments or studies
+- **File attachments**: PDFs, images, documents per sample
+- **Sample reservation**: soft lock with expiry and note
+- **User activity log**: system-level audit (admin only)
+- **German/English UI toggle**: localStorage persistent
+- **Email notifications**: expiry alerts via SMTP (configurable)
+- **Full sample editing**: all fields except sample_id editable after registration
 
 ### Security (NFR-14 to NFR-20)
 - Account lockout after 5 failed logins (15-minute lock)
@@ -172,7 +171,7 @@ LabTrack/
 - XSS escaping on all user-supplied DOM insertions
 - MIME type validation on file uploads
 - Security headers on every response (CSP, X-Frame-Options, etc.)
-- Secret key loaded from `.env` — never hardcoded
+- Secret key loaded from `.env`, never hardcoded
 - HTTPS via Cloudflare Tunnel (`./start_https.sh`)
 
 ---
@@ -186,11 +185,11 @@ python3 -m pytest tests/ -v
 | Layer | File | Count |
 |---|---|---|
 | Unit | test_models.py + test_patterns.py | 50 tests |
-| Integration | test_routes.py | 30 tests |
-| System | test_system.py | 38 tests |
+| Integration | test_routes.py | 44 tests |
+| System | test_system.py | 24 tests |
 | **Total** | | **118 tests** |
 
-All tests use an in-memory SQLite database — no side effects on `labtrack.db`.
+All tests use an in-memory SQLite database. No side effects on `labtrack.db`.
 
 ---
 
@@ -220,7 +219,7 @@ Full API: see `docs/DEVELOPER.md`
 |---|---|---|
 | 1 | Project definition, target users, tech stack | 5 |
 | 2 | FR-01–FR-19, NFR-01–NFR-13 | 10 |
-| 3 | Core classes — models, repositories, services | 10 |
+| 3 | Core classes (models, repositories, services) | 10 |
 | 4 | UML diagrams (use case, class, sequence, activity) | 10 |
 | 5 | Design patterns (Factory, Singleton, Strategy, Adapter) | 10 |
 | 6 | Architecture (layered + client-server, REST API) | 15 |

@@ -1,4 +1,4 @@
-# LabTrack — Developer Guide
+# LabTrack: Developer Guide
 
 > Technical setup, testing, architecture details, and deployment.  
 > For end-user instructions see [USER_GUIDE.md](USER_GUIDE.md).
@@ -27,17 +27,17 @@ pip3 install -r requirements.txt
 
 # Create environment file
 cp .env.example .env
-# Edit .env — set a strong SECRET_KEY (required)
+# Edit .env: set a strong SECRET_KEY (required)
 # Optionally configure SMTP for email notifications
 ```
 
 ### `.env` file
 
 ```env
-# Required — generate with: python3 -c "import secrets; print(secrets.token_hex(32))"
+# Required. Generate with: python3 -c "import secrets; print(secrets.token_hex(32))"
 SECRET_KEY=your-random-secret-key-here
 
-# Optional — SMTP for expiry email notifications
+# Optional: SMTP for expiry email notifications
 MAIL_ENABLED=False
 MAIL_USERNAME=your@gmail.com
 MAIL_PASSWORD=your-app-password   # Gmail App Password, not login password
@@ -59,7 +59,7 @@ python3 run.py
 ./start_https.sh
 # Flask starts on :5001
 # Cloudflare tunnel provides https://xxx.trycloudflare.com
-# Share the trycloudflare.com URL — it works from anywhere
+# Share the trycloudflare.com URL, it works from anywhere
 ```
 
 The tunnel URL changes each session. For a permanent URL, create a free Cloudflare account and use `cloudflared tunnel`.
@@ -96,14 +96,14 @@ python3 -m pytest tests/test_routes.py -v                          # integration
 python3 -m pytest tests/test_system.py -v                          # system only
 ```
 
-**All tests use in-memory SQLite** — they never touch `labtrack.db`.
+**All tests use in-memory SQLite**: they never touch `labtrack.db`.
 
 | Layer | File | Tests | What is verified |
 |---|---|---|---|
-| Unit | test_models.py | 14 | Sample domain model, lifecycle transitions, audit log |
-| Unit | test_patterns.py | 36 | Factory, Singleton, Strategy, Adapter patterns |
-| Integration | test_routes.py | 30 | All API endpoints, RBAC, error codes |
-| System | test_system.py | 38 | Complete user workflows, permission matrix, CSV import |
+| Unit | test_models.py | 13 | Sample domain model, lifecycle transitions, audit log |
+| Unit | test_patterns.py | 37 | Factory, Singleton, Strategy, Adapter patterns |
+| Integration | test_routes.py | 44 | All API endpoints, RBAC, error codes |
+| System | test_system.py | 24 | Complete user workflows, permission matrix, CSV import |
 | **Total** | | **118** | |
 
 Expected output: `118 passed`
@@ -139,17 +139,17 @@ models/                   Domain model classes (pure Python, no SQLAlchemy)
                           ALLOWED_TRANSITIONS dict
 
 patterns/
-  user_factory.py         Factory pattern — role string → User subclass
+  user_factory.py         Factory pattern: role string → User subclass
   singleton_meta.py       Singleton metaclass (applied to repositories)
-  search_strategy.py      Strategy pattern — 5 search filter algorithms
-  csv_adapter.py          Adapter pattern — CSV rows → SampleService interface
+  search_strategy.py      Strategy pattern: 5 search filter algorithms
+  csv_adapter.py          Adapter pattern: CSV rows → SampleService interface
 
 repositories/             SQLAlchemy-backed data access objects
   sample_repository.py    SampleRepository (CRUD + filter queries)
   user_repository.py      UserRepository (CRUD + lookup)
 
 services/
-  sample_service.py       SampleService — orchestrates register_sample and
+  sample_service.py       SampleService: orchestrates register_sample and
                           update_sample_status with RBAC permission checks
 
 tests/
@@ -161,7 +161,7 @@ tests/
 
 ## Database schema
 
-6 tables. `migrate_db()` runs at startup and adds missing columns to existing databases — no data loss on upgrade.
+6 tables. `migrate_db()` runs at startup and adds missing columns to existing databases without data loss on upgrade.
 
 ### samples
 | Column | Type | Notes |
@@ -275,7 +275,7 @@ Files stored in `app/static/uploads/<sample_id>/`.
 ### Public (no login)
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | /view/`<id>` | Live sample view — linked from QR labels. Auto-refreshes every 60s |
+| GET | /view/`<id>` | Live sample view, linked from QR labels. Auto-refreshes every 60s |
 
 ---
 
@@ -294,18 +294,18 @@ Files stored in `app/static/uploads/<sample_id>/`.
 | MIME validation | NFR-16 | File bytes checked for ELF, PE, PHP, shell, HTML signatures |
 | Security headers | NFR-18 | `X-Frame-Options`, `X-Content-Type-Options`, `CSP`, `Referrer-Policy`, `Permissions-Policy` |
 | HTTPS | NFR-20 | Cloudflare Tunnel via `./start_https.sh` |
-| SQL injection | NFR-07 | SQLAlchemy ORM only — no raw SQL |
+| SQL injection | NFR-07 | SQLAlchemy ORM only, no raw SQL |
 
 ---
 
 ## Adding a new feature
 
 1. **DB column:** Add to `database/models.py`. Add migration entry in `database/db.py` `migrate_db()`.
-2. **Domain model:** Add field to `models/sample.py` or `models/user.py` — `__init__`, getter, `to_dict()`.
+2. **Domain model:** Add field to `models/sample.py` or `models/user.py`: `__init__`, getter, `to_dict()`.
 3. **Repository:** Add to `_to_domain()`, `create()`, `update()` in `repositories/sample_repository.py`.
 4. **Service:** Add parameter to `services/sample_service.py` `register_sample()` if needed.
 5. **Route:** Add endpoint or parameter in `app/routes/sample_routes.py`.
-6. **Frontend:** Update `app/templates/index.html` — HTML + JS.
+6. **Frontend:** Update `app/templates/index.html`: HTML + JS.
 7. **Test:** Add integration test in `tests/test_routes.py`.
 
 ---
@@ -322,8 +322,8 @@ MAIL_PASSWORD=your-16-char-app-password
 For Gmail, create an App Password: Google Account → Security → 2-Step Verification → App Passwords.
 
 The scheduler checks for expiring samples every 24 hours and emails the registering researcher:
-- **7 days before expiry** — warning
-- **On the expiry day** — alert
+- **7 days before expiry**: warning
+- **On the expiry day**: alert
 
 Test it: Admin panel → "Send test email to myself".
 
