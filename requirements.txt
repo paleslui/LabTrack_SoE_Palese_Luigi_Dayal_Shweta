@@ -6,7 +6,6 @@ Flask>=3.0,<4.0
 
 # ── Database ──────────────────────────────────────────────────────────────────
 SQLAlchemy>=2.0,<3.0       # ORM layer — swap SQLite for PostgreSQL via DATABASE_URI
-alembic>=1.13,<2.0         # Database migrations
 
 # ── Authentication ────────────────────────────────────────────────────────────
 bcrypt>=4.0,<5.0           # Password hashing (NFR-02)

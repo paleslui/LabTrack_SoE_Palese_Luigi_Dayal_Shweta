@@ -21,7 +21,8 @@ from typing import Optional
 class SampleStatus(Enum):
     """
     Enumeration of the valid lifecycle states for a sample.
-    Transitions must follow the defined order (enforced by Sample).
+    All transitions between any two states are permitted in both directions (FR-20).
+    Every transition is permanently recorded in the audit log for traceability.
     """
     COLLECTED  = "Collected"
     PROCESSING = "Processing"
@@ -207,8 +208,8 @@ class Sample:
         """
         Transition the sample to a new lifecycle status.
 
-        Only allows transitions defined in ALLOWED_TRANSITIONS.
-        Appends an AuditEntry to the internal audit log on success.
+        All transitions between any two states are permitted (FR-20).
+        Appends an immutable AuditEntry to the internal audit log on every call.
 
         Parameters
         ----------
@@ -217,7 +218,7 @@ class Sample:
 
         Raises
         ------
-        ValueError — if the transition is not permitted
+        ValueError — if new_status equals the current status (no-op transition)
         """
         allowed = ALLOWED_TRANSITIONS.get(self._status, [])
         if new_status not in allowed:
@@ -237,7 +238,14 @@ class Sample:
         self._updated_at = datetime.utcnow()
 
     def is_terminal(self) -> bool:
-        """Return True if the sample has reached a terminal state."""
+        """
+        Return True if the sample is in a Consumed or Discarded state.
+
+        Informational only — under FR-20 every status is reachable from every
+        other status, so a Consumed/Discarded sample can still be transitioned
+        back if a mistake was made. Every change is recorded in the audit log.
+        The historical name is kept for backwards compatibility with callers.
+        """
         return self._status in (SampleStatus.CONSUMED, SampleStatus.DISCARDED)
 
     def to_dict(self) -> dict:

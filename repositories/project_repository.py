@@ -1,5 +1,11 @@
 """
-repositories/project_repository.py — CRUD for project groupings.
+repositories/project_repository.py
+------------------------------------
+SQLAlchemy-backed data access layer for Project objects.
+
+Projects represent named experiments or studies that samples can be
+tagged to. This repository handles creation, listing, and deletion
+of projects, and automatically unlinks any assigned samples on delete.
 """
 
 from typing import Optional
@@ -8,6 +14,13 @@ from database.models import ProjectModel, SampleModel
 
 
 class ProjectRepository:
+    """
+    Data access object for the projects table.
+
+    All methods open their own db_session context and commit on exit.
+    On project deletion, assigned samples have their project_id set to
+    NULL rather than being deleted (cascade preserve).
+    """
 
     @staticmethod
     def _to_dict(orm: ProjectModel, sample_count: int = 0) -> dict:

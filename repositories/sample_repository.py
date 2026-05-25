@@ -2,6 +2,9 @@
 repositories/sample_repository.py
 ----------------------------------
 SQLAlchemy-backed data access layer for Sample objects.
+
+Design pattern applied: Singleton (via SingletonMeta metaclass) —
+ensures one shared repository instance across the entire application.
 """
 
 from datetime import datetime
@@ -9,9 +12,10 @@ from typing import Optional
 from models.sample import Sample, SampleStatus, AuditEntry
 from database.db import db_session
 from database.models import SampleModel, AuditEntryModel
+from patterns.singleton_meta import SingletonMeta
 
 
-class SampleRepository:
+class SampleRepository(metaclass=SingletonMeta):
 
     # ── ID generation ──────────────────────────────────────────────────────
     def _next_id(self) -> str:

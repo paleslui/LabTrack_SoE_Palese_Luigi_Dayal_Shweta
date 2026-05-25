@@ -2,6 +2,9 @@
 repositories/user_repository.py
 ---------------------------------
 SQLAlchemy-backed data access layer for User objects.
+
+Design pattern applied: Singleton (via SingletonMeta metaclass) —
+ensures one shared repository instance across the entire application.
 """
 
 from typing import Optional
@@ -9,9 +12,10 @@ from models.user import User
 from patterns.user_factory import UserFactory
 from database.db import db_session
 from database.models import UserModel
+from patterns.singleton_meta import SingletonMeta
 
 
-class UserRepository:
+class UserRepository(metaclass=SingletonMeta):
 
     @staticmethod
     def _to_domain(orm: UserModel) -> User:

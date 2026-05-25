@@ -75,13 +75,15 @@ class SingletonMeta(type):
 
 
 # ---------------------------------------------------------------------------
-# Updated repository classes — Singleton applied via metaclass
+# In-memory demonstration stubs — used by tests/test_patterns.py to exercise
+# the SingletonMeta contract in isolation from the SQLAlchemy stack.
+#
+# The production repositories live in repositories/sample_repository.py and
+# repositories/user_repository.py; they also apply SingletonMeta but go to
+# the database instead of an in-memory dict.
 # ---------------------------------------------------------------------------
 
-import sys, os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-
-from models.sample import Sample, SampleStatus
+from models.sample import Sample
 from models.user import User
 from typing import Optional
 from datetime import datetime

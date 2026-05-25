@@ -1131,7 +1131,8 @@ async function handleCsvFile(file) {
   form.append('file', file);
   try {
     const resp = await fetch('/api/samples/import', {
-      method: 'POST', credentials: 'include', body: form
+      method: 'POST', credentials: 'include', body: form,
+      headers: { 'X-CSRF-Token': getCsrfToken() }
     });
     const data = await resp.json();
     if (!resp.ok) {
@@ -1642,7 +1643,8 @@ async function handleAttachFile(file) {
   const form = new FormData();
   form.append('file', file);
   const resp = await fetch(`/api/samples/${detailId}/attachments`, {
-    method: 'POST', credentials: 'include', body: form
+    method: 'POST', credentials: 'include', body: form,
+    headers: { 'X-CSRF-Token': getCsrfToken() }
   });
   const data = await resp.json().catch(() => ({}));
   if (!resp.ok) {

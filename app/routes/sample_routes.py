@@ -2,6 +2,16 @@
 app/routes/sample_routes.py — Full REST API for samples, wired to SampleService
 """
 
+# Architecture note:
+# Core operations (register, update_status) flow through SampleService as per
+# the three-tier layered design. Extended operations added in v11.0 (bulk ops,
+# edit, reservations, attachments) access the repository via the service instance
+# (_get_service()._sample_repo) as a pragmatic shortcut — these do not require
+# business rule validation beyond what the DB constraints enforce.
+# The Strategy pattern (search_strategy.py) is applied here rather than inside
+# SampleService because search is a presentation-layer concern: it depends on
+# HTTP query parameters which SampleService deliberately has no knowledge of.
+
 from flask import Blueprint, request, jsonify, abort, g, Response, session
 from datetime import datetime
 import io, csv
@@ -796,6 +806,7 @@ def upload_attachment(sample_id: str):
         return jsonify({"error": "No file selected"}), 400
     if not _ext_ok(file.filename):
         return jsonify({"error": f"Extension not allowed. Accepted: {sorted(_ALLOWED_EXTENSIONS)}"}), 400
+    ext = file.filename.rsplit(".", 1)[1].lower()
 
     # Read file content for MIME validation
     file_bytes = file.read(512)

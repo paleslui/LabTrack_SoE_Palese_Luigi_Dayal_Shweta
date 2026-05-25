@@ -182,7 +182,9 @@ def create_app(config: dict | None = None) -> Flask:
             header_token = req.headers.get("X-CSRF-Token", "")
             if not _secrets.compare_digest(cookie_in_request, header_token):
                 from flask import jsonify as _jsonify
-                return _jsonify({"error": "CSRF token missing or invalid"}), 403
+                rej = _jsonify({"error": "CSRF token missing or invalid"})
+                rej.status_code = 403
+                return rej
         return response
 
     # ── Security headers ──────────────────────────────────────────────────
